@@ -9,8 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../../components
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../../components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../../components/ui/table"
 import { FolderOpen, MoreVertical, Plus, Search, Edit, Trash, Video } from "lucide-react"
-import { useToast } from "../../../../components/ui/use-toast"
+import { toast } from "sonner"
 import { categoryApi, subcategoryApi } from "../../../../lib/api"
+import { Skeleton } from "../../../../components/ui/skeleton"
 
 interface Category {
   _id: string
@@ -31,38 +32,58 @@ interface Subcategory {
 }
 
 export default function CategoriesPage() {
-  const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [loading, setLoading] = useState(true)
   const [categories, setCategories] = useState<Category[]>([])
   const [subcategories, setSubcategories] = useState<Subcategory[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true)
+        setError(null)
 
+        console.log("Fetching categories...")
         // Fetch categories
-        const categoriesResponse = await categoryApi.getAll()
-        setCategories(categoriesResponse.data)
+        const categoriesData = await categoryApi.getAll()
+        console.log("Categories response:", categoriesData)
 
+        // Handle different response formats
+        if (Array.isArray(categoriesData)) {
+          setCategories(categoriesData)
+        } else if (categoriesData && Array.isArray(categoriesData.data)) {
+          setCategories(categoriesData.data)
+        } else {
+          console.error("Categories data is not an array:", categoriesData)
+          setCategories([])
+        }
+
+        console.log("Fetching subcategories...")
         // Fetch subcategories
-        const subcategoriesResponse = await subcategoryApi.getAll()
-        setSubcategories(subcategoriesResponse.data)
-      } catch (error) {
-        console.error("Error fetching categories:", error)
-        toast({
-          title: "Error",
-          description: "Failed to load categories",
-          variant: "destructive",
-        })
+        const subcategoriesData = await subcategoryApi.getAll()
+        console.log("Subcategories response:", subcategoriesData)
+
+        // Handle different response formats
+        if (Array.isArray(subcategoriesData)) {
+          setSubcategories(subcategoriesData)
+        } else if (subcategoriesData && Array.isArray(subcategoriesData.data)) {
+          setSubcategories(subcategoriesData.data)
+        } else {
+          console.error("Subcategories data is not an array:", subcategoriesData)
+          setSubcategories([])
+        }
+      } catch (error: any) {
+        console.error("Error fetching data:", error)
+        setError(error.message || "Failed to load data")
+        toast.error("Failed to load categories: " + (error.message || "Unknown error"))
       } finally {
         setLoading(false)
       }
     }
 
     fetchData()
-  }, [toast])
+  }, [])
 
   const filteredCategories = categories.filter(
     (category) =>
@@ -84,17 +105,10 @@ export default function CategoriesPage() {
     try {
       await categoryApi.delete(id)
       setCategories(categories.filter((category) => category._id !== id))
-      toast({
-        title: "Category deleted",
-        description: "The category has been deleted successfully",
-      })
+      toast.success("Category deleted successfully")
     } catch (error: any) {
       console.error("Error deleting category:", error)
-      toast({
-        title: "Error",
-        description: error.response?.data?.error || "Failed to delete category",
-        variant: "destructive",
-      })
+      toast.error(error.message || "Failed to delete category")
     }
   }
 
@@ -106,24 +120,26 @@ export default function CategoriesPage() {
     try {
       await subcategoryApi.delete(id)
       setSubcategories(subcategories.filter((subcategory) => subcategory._id !== id))
-      toast({
-        title: "Subcategory deleted",
-        description: "The subcategory has been deleted successfully",
-      })
+      toast.success("Subcategory deleted successfully")
     } catch (error: any) {
       console.error("Error deleting subcategory:", error)
-      toast({
-        title: "Error",
-        description: error.response?.data?.error || "Failed to delete subcategory",
-        variant: "destructive",
-      })
+      toast.error(error.message || "Failed to delete subcategory")
     }
   }
 
-  if (loading) {
+  if (error) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <div className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">Categories Management</h1>
+        </div>
+        <Card className="w-full p-6">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-destructive mb-2">Error Loading Data</h2>
+            <p className="mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>Try Again</Button>
+          </div>
+        </Card>
       </div>
     )
   }
@@ -183,7 +199,26 @@ export default function CategoriesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredCategories.length === 0 ? (
+                  {loading ? (
+                    Array(5)
+                      .fill(0)
+                      .map((_, index) => (
+                        <TableRow key={`skeleton-${index}`}>
+                          <TableCell>
+                            <Skeleton className="h-6 w-[150px]" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-6 w-[200px]" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-6 w-[100px]" />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Skeleton className="h-8 w-8 rounded-full ml-auto" />
+                          </TableCell>
+                        </TableRow>
+                      ))
+                  ) : filteredCategories.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-4">
                         No categories found. Try a different search term or create a new category.
@@ -256,7 +291,26 @@ export default function CategoriesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredSubcategories.length === 0 ? (
+                  {loading ? (
+                    Array(5)
+                      .fill(0)
+                      .map((_, index) => (
+                        <TableRow key={`skeleton-${index}`}>
+                          <TableCell>
+                            <Skeleton className="h-6 w-[150px]" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-6 w-[150px]" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-6 w-[100px]" />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Skeleton className="h-8 w-8 rounded-full ml-auto" />
+                          </TableCell>
+                        </TableRow>
+                      ))
+                  ) : filteredSubcategories.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-4">
                         No subcategories found. Try a different search term or create a new subcategory.

@@ -5,7 +5,12 @@ import Link from "next/link"
 import { Button } from "../../../../components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../../components/ui/card"
 import { Input } from "../../../../components/ui/input"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../../components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../../../components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../../components/ui/table"
 import { MoreVertical, Plus, Search, Edit, Trash, FileText, Download, Eye } from "lucide-react"
 import { pdfApi } from "../../../../lib/api"
@@ -41,7 +46,16 @@ export default function PDFsPage() {
       try {
         setLoading(true)
         const response = await pdfApi.getAll()
-        setPdfs(response.data)
+
+        // Handle different response formats
+        if (Array.isArray(response)) {
+          setPdfs(response)
+        } else if (response && Array.isArray(response.data)) {
+          setPdfs(response.data)
+        } else {
+          console.error("PDFs data is not an array:", response)
+          setPdfs([])
+        }
       } catch (error) {
         console.error("Error fetching PDFs:", error)
         toast({

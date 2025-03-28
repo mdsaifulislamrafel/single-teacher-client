@@ -5,7 +5,12 @@ import Link from "next/link"
 import { Button } from "../../../../components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../../components/ui/card"
 import { Input } from "../../../../components/ui/input"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../../components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../../../components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../../components/ui/table"
 import { MoreVertical, Plus, Search, Edit, Trash, Video, Eye } from "lucide-react"
 import { videoApi } from "../../../../lib/api"
@@ -39,7 +44,16 @@ export default function VideosPage() {
       try {
         setLoading(true)
         const response = await videoApi.getAll()
-        setVideos(response.data)
+
+        // Handle different response formats
+        if (Array.isArray(response)) {
+          setVideos(response)
+        } else if (response && Array.isArray(response.data)) {
+          setVideos(response.data)
+        } else {
+          console.error("Videos data is not an array:", response)
+          setVideos([])
+        }
       } catch (error) {
         console.error("Error fetching videos:", error)
         toast({

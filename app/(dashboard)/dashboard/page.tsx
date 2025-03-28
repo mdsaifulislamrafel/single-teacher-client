@@ -3,74 +3,74 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs"
-import { BookOpen, FileText, Clock, CheckCircle } from "lucide-react"
-
-import { useToast } from "../../../components/ui/use-toast"
-import Link from "next/link"
 import { Button } from "../../../components/ui/button"
+import { Progress } from "../../../components/ui/progress"
+import { Badge } from "../../../components/ui/badge"
+import { Clock, FileText, CheckCircle, AlertCircle } from "lucide-react"
+import { useToast } from "../../../components/ui/use-toast"
+import {api}  from "../../../lib/api"
+import Link from "next/link"
 import { useAuth } from "../../../contexts/AuthContext"
-import { userApi } from "../../../lib/api"
-
-interface UserCourse {
-  _id: string
-  subcategory: {
-    _id: string
-    name: string
-    category: {
-      _id: string
-      name: string
-    }
-  }
-  lastAccessedVideo: {
-    _id: string
-    title: string
-  }
-  completedVideos: string[]
-  isCompleted: boolean
-  lastAccessedAt: string
-}
-
-interface UserPDF {
-  _id: string
-  item: {
-    _id: string
-    title: string
-    description: string
-    price: number
-    fileUrl: string
-    downloads: number
-  }
-  status: string
-  createdAt: string
-}
 
 export default function DashboardPage() {
-  const { user } = useAuth()
   const { toast } = useToast()
+  const { user } = useAuth()
+  const [courses, setCourses] = useState<any[]>([])
+  const [pdfs, setPdfs] = useState<any[]>([])
+  const [payments, setPayments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [courses, setCourses] = useState<UserCourse[]>([])
-  const [pdfs, setPdfs] = useState<UserPDF[]>([])
-  const [pendingPayments, setPendingPayments] = useState(0)
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!user) return
-
       try {
-        setLoading(true)
+        // Fetch user's payments
+        const paymentsData = await api.get("/payments/user")
+        setPayments(paymentsData)
 
-        // Fetch user courses
-        const coursesResponse = await userApi.getCourses(user.id)
-        setCourses(coursesResponse.data)
+        // Extract course IDs from payments
+        const courseIds = paymentsData
+          .filter((payment) => payment.itemType === "course" && payment.status === "approved")
+          .map((payment) => payment.item._id || payment.item)
 
-        // Fetch user PDFs
-        const pdfsResponse = await userApi.getPDFs(user.id)
-        setPdfs(pdfsResponse.data)
+        // Fetch course details and progress for each course
+        const coursesWithProgress = await Promise.all(
+          courseIds.map(async (courseId) => {
+            const course = await api.get(`/subcategories/${courseId}`)
+            const videos = await api.get(`/subcategories/${courseId}/videos`)
 
-        // Fetch user payments to count pending ones
-        const paymentsResponse = await userApi.getPayments(user.id)
-        const pendingCount = paymentsResponse.data.filter((payment: any) => payment.status === "pending").length
-        setPendingPayments(pendingCount)
+            let progress = null
+            try {
+              progress = await api.get(`/subcategories/${courseId}/progress`)
+            } catch (error) {
+              console.error(`Error fetching progress for course ${courseId}:`, error)
+            }
+
+            return {
+              ...course,
+              videos,
+              progress,
+            }
+          }),
+        )
+
+        setCourses(coursesWithProgress)
+
+        // Extract PDF IDs from payments
+        const pdfIds = paymentsData
+          .filter((payment) => payment.itemType === "pdf" && payment.status === "approved")
+          .map((payment) => payment.item._id || payment.item)
+
+        // Fetch PDF details for each PDF
+        const pdfsData = await Promise.all(
+          pdfIds.map(async (pdfId) => {
+            const pdf = await api.get(`/pdfs/${pdfId}`)
+            return pdf
+          }),
+        )
+
+        setPdfs(pdfsData)
+
+        setLoading(false)
       } catch (error) {
         console.error("Error fetching dashboard data:", error)
         toast({
@@ -78,179 +78,225 @@ export default function DashboardPage() {
           description: "Failed to load dashboard data",
           variant: "destructive",
         })
-      } finally {
         setLoading(false)
       }
     }
 
-    fetchData()
+    if (user) {
+      fetchData()
+    }
   }, [user, toast])
-
-  // Calculate stats
-  const stats = [
-    {
-      title: "Courses Purchased",
-      value: courses.length.toString(),
-      icon: BookOpen,
-    },
-    {
-      title: "PDFs Purchased",
-      value: pdfs.length.toString(),
-      icon: FileText,
-    },
-    {
-      title: "Pending Approvals",
-      value: pendingPayments.toString(),
-      icon: Clock,
-    },
-    {
-      title: "Completed Courses",
-      value: courses.filter((course) => course.isCompleted).length.toString(),
-      icon: CheckCircle,
-    },
-  ]
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <div className="container py-10">
+        <div className="flex flex-col space-y-4">
+          <div className="h-8 w-1/3 bg-muted rounded animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="h-32 bg-muted rounded animate-pulse" />
+            <div className="h-32 bg-muted rounded animate-pulse" />
+            <div className="h-32 bg-muted rounded animate-pulse" />
+          </div>
+          <div className="h-64 w-full bg-muted rounded animate-pulse mt-4" />
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <h1 className="text-3xl font-bold">Dashboard</h1>
+    <div className="container py-10">
+      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat, index) => (
-          <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <stat.icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Enrolled Courses</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{courses.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {courses.filter((course) => course.progress?.isCompleted).length} completed
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Purchased PDFs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{pdfs.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">Access to all resources</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Payment Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {payments.filter((payment) => payment.status === "approved").length}/{payments.length}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {payments.filter((payment) => payment.status === "pending").length} pending approval
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      <Tabs defaultValue="courses" className="w-full">
+      <Tabs defaultValue="courses" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="courses">Recent Courses</TabsTrigger>
-          <TabsTrigger value="pdfs">Recent PDFs</TabsTrigger>
+          <TabsTrigger value="courses">My Courses</TabsTrigger>
+          <TabsTrigger value="pdfs">My PDFs</TabsTrigger>
+          <TabsTrigger value="payments">Payment History</TabsTrigger>
         </TabsList>
-        <TabsContent value="courses" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>My Courses</CardTitle>
-              <CardDescription>View your recent course activity and progress.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {courses.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground mb-4">You haven't purchased any courses yet.</p>
-                    <Link href="/courses">
-                      <Button>Browse Courses</Button>
-                    </Link>
-                  </div>
-                ) : (
-                  courses.map((course) => (
-                    <div
-                      key={course._id}
-                      className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0"
-                    >
-                      <div className="space-y-1">
-                        <p className="font-medium">
-                          {course.subcategory.category.name} - {course.subcategory.name}
-                        </p>
-                        <div className="flex items-center text-sm text-muted-foreground">
-                          <span
-                            className={`mr-2 rounded-full px-2 py-0.5 text-xs ${
-                              course.isCompleted
-                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-                                : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
-                            }`}
-                          >
-                            {course.isCompleted ? "Completed" : "In Progress"}
-                          </span>
-                          <span>Last accessed: {new Date(course.lastAccessedAt).toLocaleDateString()}</span>
+
+        <TabsContent value="courses" className="space-y-4">
+          {courses.length === 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>No Courses Yet</CardTitle>
+                <CardDescription>
+                  You haven't enrolled in any courses yet. Browse our courses to get started.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild>
+                  <Link href="/courses">Browse Courses</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {courses.map((course) => {
+                const completedCount = course.progress?.completedVideos?.length || 0
+                const totalVideos = course.videos?.length || 0
+                const progressPercentage = totalVideos > 0 ? Math.round((completedCount / totalVideos) * 100) : 0
+
+                return (
+                  <Card key={course._id}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg">{course.name}</CardTitle>
+                      <CardDescription className="line-clamp-2">{course.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-medium">Progress</span>
+                          <span className="text-sm font-medium">{progressPercentage}%</span>
+                        </div>
+                        <Progress value={progressPercentage} className="h-2" />
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center">
+                          <Clock className="h-4 w-4 mr-1" />
+                          <span>{totalVideos} videos</span>
+                        </div>
+                        <div className="flex items-center">
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          <span>{completedCount} completed</span>
                         </div>
                       </div>
-                      {!course.isCompleted && (
-                        <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary"
-                            style={{
-                              width: `${
-                                course.completedVideos.length > 0
-                                  ? (course.completedVideos.length / (course.completedVideos.length + 5)) * 100
-                                  : 0
-                              }%`,
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                      <Button asChild className="w-full">
+                        <Link href={`/courses/${course._id}`}>Continue Learning</Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
         </TabsContent>
-        <TabsContent value="pdfs" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>My PDFs</CardTitle>
-              <CardDescription>View your purchased PDF resources.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {pdfs.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground mb-4">You haven't purchased any PDFs yet.</p>
-                    <Link href="/pdfs">
-                      <Button>Browse PDFs</Button>
-                    </Link>
-                  </div>
-                ) : (
-                  pdfs.map((pdf) => (
+
+        <TabsContent value="pdfs" className="space-y-4">
+          {pdfs.length === 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>No PDFs Yet</CardTitle>
+                <CardDescription>You haven't purchased any PDFs yet. Browse our PDFs to get started.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild>
+                  <Link href="/pdfs">Browse PDFs</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {pdfs.map((pdf) => (
+                <Card key={pdf._id}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">{pdf.title}</CardTitle>
+                    <CardDescription className="line-clamp-2">{pdf.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center">
+                        <FileText className="h-4 w-4 mr-1" />
+                        <span>PDF Document</span>
+                      </div>
+                      <Badge variant="outline">{pdf.pages} pages</Badge>
+                    </div>
+                    <Button asChild className="w-full">
+                      <Link href={`/pdfs/${pdf._id}`}>View PDF</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="payments" className="space-y-4">
+          {payments.length === 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>No Payment History</CardTitle>
+                <CardDescription>You haven't made any payments yet.</CardDescription>
+              </CardHeader>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Payment History</CardTitle>
+                <CardDescription>Your recent payment transactions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {payments.map((payment) => (
                     <div
-                      key={pdf._id}
+                      key={payment._id}
                       className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0"
                     >
-                      <div className="space-y-1">
-                        <p className="font-medium">{pdf.item.title}</p>
+                      <div>
+                        <p className="font-medium">{payment.item.name || payment.item.title}</p>
                         <div className="flex items-center text-sm text-muted-foreground">
-                          <span
-                            className={`mr-2 rounded-full px-2 py-0.5 text-xs ${
-                              pdf.status === "approved"
-                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-                                : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
-                            }`}
-                          >
-                            {pdf.status === "approved" ? "Available" : "Pending Approval"}
-                          </span>
-                          <span>
-                            {pdf.status === "approved"
-                              ? `Downloaded: ${pdf.item.downloads} times`
-                              : "Awaiting approval"}
-                          </span>
+                          <span className="capitalize">{payment.itemType}</span>
+                          <span className="mx-2">•</span>
+                          <span>${payment.amount.toFixed(2)}</span>
+                          <span className="mx-2">•</span>
+                          <span>{new Date(payment.createdAt).toLocaleDateString()}</span>
                         </div>
                       </div>
-                      {pdf.status === "approved" && (
-                        <Button variant="outline" size="sm" onClick={() => window.open(pdf.item.fileUrl, "_blank")}>
-                          Download
-                        </Button>
-                      )}
+                      <Badge
+                        variant={
+                          payment.status === "approved"
+                            ? "default"
+                            : payment.status === "pending"
+                              ? "outline"
+                              : "destructive"
+                        }
+                      >
+                        {payment.status === "approved" && <CheckCircle className="h-3 w-3 mr-1" />}
+                        {payment.status === "pending" && <Clock className="h-3 w-3 mr-1" />}
+                        {payment.status === "rejected" && <AlertCircle className="h-3 w-3 mr-1" />}
+                        {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
+                      </Badge>
                     </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
     </div>

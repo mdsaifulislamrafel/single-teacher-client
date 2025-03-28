@@ -7,6 +7,7 @@ import Link from "next/link"
 import { Button } from "../../components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar"
 import { ModeToggle } from "../../components/mode-toggle"
+import { useAuth } from "../../contexts/AuthContext"
 import {
   LayoutDashboard,
   BookOpen,
@@ -23,8 +24,7 @@ import {
 } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "../../components/ui/sheet"
 import { cn } from "../../lib/utils"
-import { useAuth } from "../../contexts/AuthContext"
-
+import { toast } from "sonner"
 
 export default function DashboardLayout({
   children,
@@ -35,20 +35,43 @@ export default function DashboardLayout({
   const router = useRouter()
   const { user, isAuthenticated, isAdmin, logout, loading } = useAuth()
 
-  // Redirect if not authenticated
+  // Check access rights and redirect if needed
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.push("/login")
+    if (!loading) {
+      // If not authenticated, redirect to login
+      if (!isAuthenticated) {
+        toast.error("Please login to access this page")
+        router.push("/login")
+        return
+      }
+
+      // If trying to access admin routes without admin role
+      if (pathname?.startsWith("/admin") && !isAdmin) {
+        toast.error("You don't have permission to access this page")
+        router.push("/dashboard")
+        return
+      }
+
+      // If admin trying to access user routes
+      if (isAdmin && pathname?.startsWith("/dashboard") && !pathname?.startsWith("/dashboard/profile")) {
+        router.push("/admin/dashboard")
+        return
+      }
     }
-  }, [loading, isAuthenticated, router])
+  }, [loading, isAuthenticated, isAdmin, pathname, router])
 
   // Show loading state
-  if (loading || !isAuthenticated) {
+  if (loading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-gray-900"></div>
       </div>
     )
+  }
+
+  // If not authenticated, don't render the layout
+  if (!isAuthenticated) {
+    return null
   }
 
   const userMenuItems = [
@@ -62,7 +85,7 @@ export default function DashboardLayout({
       title: "My Courses",
       href: "/dashboard/courses",
       icon: BookOpen,
-      isActive: pathname === "/dashboard/courses",
+      isActive: pathname?.startsWith("/dashboard/courses"),
     },
     {
       title: "My PDFs",
@@ -74,7 +97,13 @@ export default function DashboardLayout({
       title: "Profile",
       href: "/dashboard/profile",
       icon: User,
-      isActive: pathname === "/dashboard/profile",
+      isActive: pathname?.startsWith("/dashboard/profile"),
+    },
+    {
+      title: "My Payments",
+      href: "/dashboard/payments",
+      icon: CreditCard,
+      isActive: pathname === "/dashboard/payments",
     },
   ]
 
@@ -89,25 +118,25 @@ export default function DashboardLayout({
       title: "Categories",
       href: "/admin/categories",
       icon: FolderOpen,
-      isActive: pathname === "/admin/categories",
+      isActive: pathname?.startsWith("/admin/categories"),
     },
     {
       title: "Videos",
       href: "/admin/videos",
       icon: Video,
-      isActive: pathname === "/admin/videos",
+      isActive: pathname?.startsWith("/admin/videos"),
     },
     {
       title: "PDFs",
       href: "/admin/pdfs",
       icon: FileText,
-      isActive: pathname === "/admin/pdfs",
+      isActive: pathname?.startsWith("/admin/pdfs"),
     },
     {
       title: "Users",
       href: "/admin/users",
       icon: Users,
-      isActive: pathname === "/admin/users",
+      isActive: pathname?.startsWith("/admin/users"),
     },
     {
       title: "Payments",
@@ -187,10 +216,13 @@ export default function DashboardLayout({
           </div>
           <div className="flex items-center gap-4">
             <ModeToggle />
-            <Avatar>
-              <AvatarImage src="/placeholder.svg" alt={user?.name || "User"} />
-              <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
-            </Avatar>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium hidden md:block">{user?.name}</span>
+              <Avatar>
+                <AvatarImage src={user?.avatar || "/placeholder.svg"} alt={user?.name || "User"} />
+                <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
+              </Avatar>
+            </div>
           </div>
         </div>
       </header>

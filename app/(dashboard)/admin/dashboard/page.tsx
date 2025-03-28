@@ -9,6 +9,7 @@ import Link from "next/link"
 import { categoryApi, videoApi, pdfApi, userApi, paymentApi } from "../../../../lib/api"
 import { useToast } from "../../../../components/ui/use-toast"
 import { useAuth } from "../../../../contexts/AuthContext"
+import api from "../../../../lib/axios"
 
 interface Payment {
   _id: string
@@ -46,33 +47,101 @@ export default function AdminDashboardPage() {
   const [userCount, setUserCount] = useState(0)
   const [recentPayments, setRecentPayments] = useState<Payment[]>([])
   const [recentUsers, setRecentUsers] = useState<User[]>([])
+  const [pendingPayments, setPendingPayments] = useState(0)
+  const [approvedPayments, setApprovedPayments] = useState(0)
+  const [rejectedPayments, setRejectedPayments] = useState(0)
+  const [totalRevenue, setTotalRevenue] = useState(0)
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!user || !isAdmin) return
-
       try {
         setLoading(true)
 
-        // Fetch counts
+        // Fetch categories count
         const categoriesResponse = await categoryApi.getAll()
-        setCategoryCount(categoriesResponse.data.length)
+        if (Array.isArray(categoriesResponse)) {
+          setCategoryCount(categoriesResponse.length)
+        } else if (categoriesResponse && Array.isArray(categoriesResponse.data)) {
+          setCategoryCount(categoriesResponse.data.length)
+        } else {
+          setCategoryCount(0)
+        }
 
+        // Fetch videos count
         const videosResponse = await videoApi.getAll()
-        setVideoCount(videosResponse.data.length)
+        if (Array.isArray(videosResponse)) {
+          setVideoCount(videosResponse.length)
+        } else if (videosResponse && Array.isArray(videosResponse.data)) {
+          setVideoCount(videosResponse.data.length)
+        } else {
+          setVideoCount(0)
+        }
 
+        // Fetch PDFs count
         const pdfsResponse = await pdfApi.getAll()
-        setPdfCount(pdfsResponse.data.length)
+        if (Array.isArray(pdfsResponse)) {
+          setPdfCount(pdfsResponse.length)
+        } else if (pdfsResponse && Array.isArray(pdfsResponse.data)) {
+          setPdfCount(pdfsResponse.data.length)
+        } else {
+          setPdfCount(0)
+        }
 
+        // Fetch users count
         const usersResponse = await userApi.getAll()
-        setUserCount(usersResponse.data.length)
+        if (Array.isArray(usersResponse)) {
+          setUserCount(usersResponse.length)
+        } else if (usersResponse && Array.isArray(usersResponse.data)) {
+          setUserCount(usersResponse.data.length)
+        } else {
+          setUserCount(0)
+        }
 
-        // Fetch recent payments
-        const paymentsResponse = await paymentApi.getAll()
-        setRecentPayments(paymentsResponse.data.slice(0, 5))
+        // Fetch payments data
+        const paymentsResponse = await api.get("/payments")
+        let paymentsData = []
+
+        if (Array.isArray(paymentsResponse)) {
+          paymentsData = paymentsResponse
+        } else if (paymentsResponse && Array.isArray(paymentsResponse.payments)) {
+          paymentsData = paymentsResponse.payments
+        } else if (paymentsResponse && typeof paymentsResponse === "object") {
+          // Try to find an array in the response
+          const possiblePayments = Object.values(paymentsResponse).find((val) => Array.isArray(val))
+          if (possiblePayments) {
+            paymentsData = possiblePayments as any[]
+          }
+        }
+
+        // Calculate payment stats
+        let pendingCount = 0
+        let approvedCount = 0
+        let rejectedCount = 0
+        let totalAmount = 0
+
+        paymentsData.forEach((payment: any) => {
+          if (payment.status === "pending") pendingCount++
+          if (payment.status === "approved") {
+            approvedCount++
+            totalAmount += payment.amount || 0
+          }
+          if (payment.status === "rejected") rejectedCount++
+        })
+
+        setPendingPayments(pendingCount)
+        setApprovedPayments(approvedCount)
+        setRejectedPayments(rejectedCount)
+        setTotalRevenue(totalAmount)
+
+        // Set recent payments
+        setRecentPayments(paymentsData.slice(0, 5))
+
+        // Set monthly data for charts
+        // ... (keep existing chart data logic)
 
         // Fetch recent users
-        setRecentUsers(usersResponse.data.slice(0, 5))
+        const usersData = Array.isArray(usersResponse) ? usersResponse : usersResponse?.data ? usersResponse.data : []
+        setRecentUsers(usersData.slice(0, 5))
       } catch (error) {
         console.error("Error fetching dashboard data:", error)
         toast({

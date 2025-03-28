@@ -1,11 +1,16 @@
-"use client"
+// "use client"
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "../../../../components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../../components/ui/card"
 import { Input } from "../../../../components/ui/input"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../../components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../../../components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../../components/ui/table"
 import { MoreVertical, Search, Edit, Trash, User, BookOpen, FileText, Ban, CheckCircle } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "../../../../components/ui/avatar"
@@ -35,8 +40,19 @@ export default function UsersPage() {
         setLoading(true)
         const response = await userApi.getAll()
 
+        // Handle different response formats
+        let userData = []
+        if (Array.isArray(response)) {
+          userData = response
+        } else if (response && Array.isArray(response.data)) {
+          userData = response.data
+        } else {
+          console.error("Users data is not an array:", response)
+          userData = []
+        }
+
         // Add status field if not present
-        const processedUsers = response.data.map((user: any) => ({
+        const processedUsers = userData.map((user: any) => ({
           ...user,
           status: user.status || "active",
         }))

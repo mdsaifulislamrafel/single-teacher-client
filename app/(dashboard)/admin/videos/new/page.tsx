@@ -1,3 +1,5 @@
+
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -13,6 +15,10 @@ import { Textarea } from "../../../../../components/ui/textarea"
 import { toast } from "../../../../../components/ui/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../../../components/ui/select"
 import { categoryApi, subcategoryApi, videoApi } from "../../../../../lib/api"
+import { FileUpload } from "../../../../../components/file-upload"
+import { Alert, AlertDescription, AlertTitle } from "../../../../../components/ui/alert"
+import { AlertCircle, CheckCircle } from "lucide-react"
+import { Progress } from "../../../../../components/ui/progress"
 
 interface Category {
   _id: string
@@ -33,8 +39,6 @@ const videoSchema = z.object({
   description: z.string().min(10, { message: "Description must be at least 10 characters" }),
   category: z.string({ required_error: "Please select a category" }),
   subcategory: z.string({ required_error: "Please select a subcategory" }),
-  vimeoId: z.string().min(5, { message: "Vimeo ID is required" }),
-  duration: z.string().min(1, { message: "Duration is required" }),
   sequence: z.coerce.number().int().nonnegative(),
 })
 
@@ -43,10 +47,15 @@ type VideoFormValues = z.infer<typeof videoSchema>
 export default function NewVideoPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "success" | "error">("idle")
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [categories, setCategories] = useState<Category[]>([])
   const [allSubcategories, setAllSubcategories] = useState<Subcategory[]>([])
   const [filteredSubcategories, setFilteredSubcategories] = useState<Subcategory[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>("")
+  const [videoFile, setVideoFile] = useState<File | null>(null)
+  const [vimeoData, setVimeoData] = useState<{ vimeoId: string; duration: string } | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   const form = useForm<VideoFormValues>({
     resolver: zodResolver(videoSchema),
@@ -55,8 +64,6 @@ export default function NewVideoPage() {
       description: "",
       category: "",
       subcategory: "",
-      vimeoId: "",
-      duration: "",
       sequence: 0,
     },
   })
@@ -88,13 +95,8 @@ export default function NewVideoPage() {
   // Filter subcategories when category changes
   useEffect(() => {
     if (selectedCategory) {
-      console.log("Selected category:", selectedCategory)
-      console.log("All subcategories:", allSubcategories)
-
       // Filter subcategories based on selected category
       const filtered = allSubcategories.filter((subcategory) => subcategory.category._id === selectedCategory)
-
-      console.log("Filtered subcategories:", filtered)
       setFilteredSubcategories(filtered)
 
       // Reset subcategory selection if the current selection doesn't belong to the selected category
@@ -109,11 +111,91 @@ export default function NewVideoPage() {
     }
   }, [selectedCategory, allSubcategories, form])
 
+  // Handle video file upload to Vimeo
+  const handleVideoUpload = async () => {
+    if (!videoFile) {
+      toast({
+        title: "Error",
+        description: "Please select a video file to upload",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const title = form.getValues("title")
+    const description = form.getValues("description")
+
+    if (!title) {
+      toast({
+        title: "Error",
+        description: "Please enter a title for the video",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setUploadStatus("uploading")
+    setUploadProgress(0)
+    setUploadError(null)
+
+    // Simulate progress updates (in a real implementation, you would get this from the Vimeo API)
+    const progressInterval = setInterval(() => {
+      setUploadProgress((prev) => {
+        if (prev >= 95) {
+          clearInterval(progressInterval)
+          return prev
+        }
+        return prev + 5
+      })
+    }, 1000)
+
+    try {
+      // Upload the video to Vimeo
+      const result = await videoApi.uploadToVimeo(videoFile, title, description)
+
+      clearInterval(progressInterval)
+      setUploadProgress(100)
+      setUploadStatus("success")
+      setVimeoData(result)
+
+      toast({
+        title: "Upload successful",
+        description: "Video has been uploaded to Vimeo successfully",
+      })
+    } catch (error: any) {
+      clearInterval(progressInterval)
+      setUploadStatus("error")
+      setUploadError(error.message || "Unknown error occurred during upload")
+
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload video to Vimeo. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
   async function onSubmit(data: VideoFormValues) {
+    if (!vimeoData) {
+      toast({
+        title: "Error",
+        description: "Please upload a video to Vimeo first",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsLoading(true)
 
     try {
-      await videoApi.create(data)
+      // Create the video with Vimeo data
+      const videoData = {
+        ...data,
+        vimeoId: vimeoData.vimeoId,
+        duration: vimeoData.duration,
+      }
+
+      await videoApi.create(videoData)
 
       toast({
         title: "Video created",
@@ -188,7 +270,6 @@ export default function NewVideoPage() {
                         onValueChange={(value) => {
                           field.onChange(value)
                           setSelectedCategory(value)
-                          console.log("Category selected:", value)
                         }}
                         defaultValue={field.value}
                       >
@@ -240,56 +321,91 @@ export default function NewVideoPage() {
                   )}
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="vimeoId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Vimeo ID</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., 123456789" {...field} />
-                      </FormControl>
-                      <FormDescription>The ID of the video on Vimeo.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="duration"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Duration</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., 15:30" {...field} />
-                      </FormControl>
-                      <FormDescription>The duration of the video in minutes and seconds.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="sequence"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sequence</FormLabel>
-                      <FormControl>
-                        <Input type="number" min="0" {...field} />
-                      </FormControl>
-                      <FormDescription>The order in which this video appears.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <FormField
+                control={form.control}
+                name="sequence"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sequence</FormLabel>
+                    <FormControl>
+                      <Input type="number" min="0" {...field} />
+                    </FormControl>
+                    <FormDescription>The order in which this video appears.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Video upload section */}
+              <div className="space-y-4 border rounded-lg p-4">
+                <h3 className="text-lg font-medium">Video Upload</h3>
+                <p className="text-sm text-muted-foreground">
+                  Upload your video file to Vimeo. Supported formats: MP4, MOV, AVI, WMV, FLV.
+                </p>
+
+                {!vimeoData ? (
+                  <>
+                    <FileUpload
+                      onFileChange={setVideoFile}
+                      accept="video/*"
+                      maxSize={500} // 500MB
+                    />
+
+                    {uploadStatus === "uploading" && (
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Uploading to Vimeo...</span>
+                          <span>{uploadProgress}%</span>
+                        </div>
+                        <Progress value={uploadProgress} className="h-2" />
+                      </div>
+                    )}
+
+                    {uploadStatus === "success" && (
+                      <Alert className="bg-green-50 border-green-200">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <AlertTitle>Upload Successful</AlertTitle>
+                        <AlertDescription>Your video has been uploaded to Vimeo successfully.</AlertDescription>
+                      </Alert>
+                    )}
+
+                    {uploadStatus === "error" && (
+                      <Alert className="bg-red-50 border-red-200">
+                        <AlertCircle className="h-4 w-4 text-red-600" />
+                        <AlertTitle>Upload Failed</AlertTitle>
+                        <AlertDescription>
+                          {uploadError || "There was an error uploading your video. Please try again."}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    <Button
+                      type="button"
+                      onClick={handleVideoUpload}
+                      disabled={!videoFile || uploadStatus === "uploading"}
+                      className="w-full"
+                    >
+                      {uploadStatus === "uploading" ? "Uploading..." : "Upload to Vimeo"}
+                    </Button>
+                  </>
+                ) : (
+                  <Alert className="bg-green-50 border-green-200">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <AlertTitle>Video Ready</AlertTitle>
+                    <AlertDescription>
+                      Your video has been uploaded to Vimeo with ID: {vimeoData.vimeoId}
+                      <br />
+                      Duration: {vimeoData.duration}
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">
               <Button type="button" variant="outline" onClick={() => router.push("/admin/videos")} disabled={isLoading}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading}>
+              <Button type="submit" disabled={isLoading || !vimeoData}>
                 {isLoading ? "Creating..." : "Create Video"}
               </Button>
             </CardFooter>

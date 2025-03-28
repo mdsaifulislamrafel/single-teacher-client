@@ -1,46 +1,195 @@
 import axios from "axios"
 
+// Make sure this URL is correct and the backend server is running
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 
 // Create axios instance
-const api = axios.create({
+const axiosInstance = axios.create({
   baseURL: API_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  withCredentials: true, // Important for cookies/CORS
 })
 
-// Add a request interceptor to add the auth token to requests
-api.interceptors.request.use(
+// Add a request interceptor to add the token to all requests
+axiosInstance.interceptors.request.use(
   (config) => {
-    // Get token from localStorage
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
-
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+    // Get token from localStorage (client-side only)
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("token")
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
     }
-
     return config
   },
   (error) => Promise.reject(error),
 )
 
+// Add a response interceptor for debugging
+axiosInstance.interceptors.response.use(
+  (response) => {
+    // Improved logging to show the actual data structure
+    console.log(`Response from ${response.config.url}:`, JSON.stringify(response.data, null, 2))
+    return response
+  },
+  (error) => {
+    console.error(`API Error for ${error.config?.url}:`, error.response?.data || error.message)
+    return Promise.reject(error)
+  },
+)
+
+// Helper functions
+const handleResponse = (response: any) => {
+  // Check if response is already the data we need
+  if (!response) {
+    console.warn("Empty response received")
+    return null
+  }
+
+  // If response is an axios response object, extract the data
+  if (response.data !== undefined) {
+    return response.data
+  }
+
+  // Otherwise return the response itself
+  return response
+}
+
+const handleError = (error: any) => {
+  if (error.response) {
+    console.error("API Error Response:", error.response.data)
+    throw error.response.data
+  }
+  console.error("API Error:", error.message)
+  throw error
+}
+
+// API methods
+export const api = {
+  get: async (endpoint: string, params = {}) => {
+    try {
+      console.log(`Making GET request to ${endpoint}`, params)
+      const response = await axiosInstance.get(endpoint, { params })
+      return handleResponse(response)
+    } catch (error) {
+      return handleError(error)
+    }
+  },
+  post: async (endpoint: string, data = {}) => {
+    try {
+      console.log(`Making POST request to ${endpoint}`, data)
+      const response = await axiosInstance.post(endpoint, data)
+      return handleResponse(response)
+    } catch (error) {
+      return handleError(error)
+    }
+  },
+  put: async (endpoint: string, data = {}) => {
+    try {
+      console.log(`Making PUT request to ${endpoint}`, data)
+      const response = await axiosInstance.put(endpoint, data)
+      return handleResponse(response)
+    } catch (error) {
+      return handleError(error)
+    }
+  },
+  patch: async (endpoint: string, data = {}) => {
+    try {
+      console.log(`Making PATCH request to ${endpoint}`, data)
+      const response = await axiosInstance.patch(endpoint, data)
+      return handleResponse(response)
+    } catch (error) {
+      return handleError(error)
+    }
+  },
+  delete: async (endpoint: string) => {
+    try {
+      console.log(`Making DELETE request to ${endpoint}`)
+      const response = await axiosInstance.delete(endpoint)
+      return handleResponse(response)
+    } catch (error) {
+      return handleError(error)
+    }
+  },
+}
+
+// Auth API
+export const authApi = {
+  login: async (email: string, password: string) => {
+    try {
+      const response = await axiosInstance.post("/auth/login", { email, password })
+      const data = handleResponse(response)
+
+      // Save token to localStorage if available
+      if (data && data.token) {
+        localStorage.setItem("token", data.token)
+      }
+
+      return data
+    } catch (error) {
+      return handleError(error)
+    }
+  },
+  register: async (userData: any) => {
+    try {
+      const response = await axiosInstance.post("/auth/register", userData)
+      return handleResponse(response)
+    } catch (error) {
+      return handleError(error)
+    }
+  },
+  googleAuth: async (googleData: any) => {
+    try {
+      console.log("Sending Google auth data:", googleData)
+      const response = await axiosInstance.post("/auth/google", googleData)
+      const data = handleResponse(response)
+      console.log("Google auth response data:", data)
+
+      // Save token to localStorage if available
+      if (data && data.token) {
+        localStorage.setItem("token", data.token)
+        console.log("Token saved to localStorage")
+      } else {
+        console.warn("No token received from Google auth")
+      }
+
+      return data
+    } catch (error) {
+      console.error("Google auth API error:", error)
+      return handleError(error)
+    }
+  },
+  getCurrentUser: async () => {
+    try {
+      const response = await axiosInstance.get("/auth/me")
+      const userData = handleResponse(response)
+      console.log("Current user data from API:", userData)
+      return userData
+    } catch (error) {
+      console.error("Get current user error:", error)
+      return handleError(error)
+    }
+  },
+  logout: () => {
+    localStorage.removeItem("token")
+    console.log("User logged out, token removed")
+  },
+}
+
 // Category API
 export const categoryApi = {
   getAll: () => api.get("/categories"),
   getById: (id: string) => api.get(`/categories/${id}`),
-  create: (data: any) => api.post("/categories", data),
-  update: (id: string, data: any) => api.put(`/categories/${id}`, data),
+  create: (categoryData: any) => api.post("/categories", categoryData),
+  update: (id: string, categoryData: any) => api.put(`/categories/${id}`, categoryData),
   delete: (id: string) => api.delete(`/categories/${id}`),
-  getSubcategories: (id: string) => api.get(`/categories/${id}/subcategories`),
 }
 
 // Subcategory API
 export const subcategoryApi = {
   getAll: () => api.get("/subcategories"),
   getById: (id: string) => api.get(`/subcategories/${id}`),
-  create: (data: any) => api.post("/subcategories", data),
-  update: (id: string, data: any) => api.put(`/subcategories/${id}`, data),
+  create: (subcategoryData: any) => api.post("/subcategories", subcategoryData),
+  update: (id: string, subcategoryData: any) => api.put(`/subcategories/${id}`, subcategoryData),
   delete: (id: string) => api.delete(`/subcategories/${id}`),
   getVideos: (id: string) => api.get(`/subcategories/${id}/videos`),
   checkAccess: (id: string) => api.get(`/subcategories/${id}/access`),
@@ -51,38 +200,26 @@ export const subcategoryApi = {
 export const videoApi = {
   getAll: () => api.get("/videos"),
   getById: (id: string) => api.get(`/videos/${id}`),
-  create: (data: any) => api.post("/videos", data),
-  update: (id: string, data: any) => api.put(`/videos/${id}`, data),
+  create: (videoData: any) => api.post("/videos", videoData),
+  update: (id: string, videoData: any) => api.put(`/videos/${id}`, videoData),
   delete: (id: string) => api.delete(`/videos/${id}`),
-  checkAccess: (data: any) => api.post("/videos/access", data),
-  markCompleted: (data: any) => api.post("/videos/complete", data),
-}
-
-// File upload API
-export const fileApi = {
-  upload: async (file: File): Promise<{ url: string; size: string }> => {
+  markCompleted: (data: { videoId: string; subcategoryId: string }) =>
+    api.post(`/videos/${data.videoId}/complete`, { subcategoryId: data.subcategoryId }),
+  uploadToVimeo: async (file: File, title: string, description: string) => {
     const formData = new FormData()
-    formData.append("file", file)
+    formData.append("video", file)
+    formData.append("title", title)
+    formData.append("description", description)
 
     try {
-      // Create a new axios instance for the file upload to set the correct content type
-      const uploadApi = axios.create({
-        baseURL: API_URL,
+      const response = await axiosInstance.post("/upload/video", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       })
-
-      const response = await uploadApi.post("/upload/pdf", formData)
-
-      return {
-        url: response.data.file.url,
-        size: response.data.file.size,
-      }
+      return handleResponse(response)
     } catch (error) {
-      console.error("Error uploading file:", error)
-      throw new Error("Failed to upload file")
+      return handleError(error)
     }
   },
 }
@@ -91,39 +228,46 @@ export const fileApi = {
 export const pdfApi = {
   getAll: () => api.get("/pdfs"),
   getById: (id: string) => api.get(`/pdfs/${id}`),
-  create: (data: any) => api.post("/pdfs", data),
-  update: (id: string, data: any) => api.put(`/pdfs/${id}`, data),
+  create: (pdfData: any) => api.post("/pdfs", pdfData),
+  update: (id: string, pdfData: any) => api.put(`/pdfs/${id}`, pdfData),
   delete: (id: string) => api.delete(`/pdfs/${id}`),
-  checkAccess: (data: any) => api.post("/pdfs/access", data),
+  checkAccess: (data: { pdfId: string }) => api.post(`/pdfs/access`, data),
+}
+
+// Payment API
+export const paymentApi = {
+  getAll: () => api.get("/payments"),
+  create: (paymentData: any) => api.post("/payments", paymentData),
+  updateStatus: (id: string, data: any) => api.patch(`/payments/${id}/status`, data),
 }
 
 // User API
 export const userApi = {
   getAll: () => api.get("/users"),
   getById: (id: string) => api.get(`/users/${id}`),
-  update: (id: string, data: any) => api.put(`/users/${id}`, data),
+  update: (id: string, userData: any) => api.put(`/users/${id}`, userData),
   delete: (id: string) => api.delete(`/users/${id}`),
   getCourses: (id: string) => api.get(`/users/${id}/courses`),
   getPDFs: (id: string) => api.get(`/users/${id}/pdfs`),
   getPayments: (id: string) => api.get(`/users/${id}/payments`),
 }
 
-// Auth API
-export const authApi = {
-  register: (data: any) => api.post("/auth/register", data),
-  login: (data: any) => api.post("/auth/login", data),
-  googleAuth: (data: any) => api.post("/auth/google", data),
-  getCurrentUser: () => api.get("/auth/me"),
-}
+// File API
+export const fileApi = {
+  upload: async (file: File) => {
+    const formData = new FormData()
+    formData.append("file", file)
 
-// Payment API
-export const paymentApi = {
-  getAll: () => api.get("/payments"),
-  getById: (id: string) => api.get(`/payments/${id}`),
-  create: (data: any) => api.post("/payments", data),
-  updateStatus: (id: string, data: any) => api.patch(`/payments/${id}/status`, data),
-  getPending: () => api.get("/payments/pending"),
+    try {
+      const response = await axiosInstance.post("/upload/pdf", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      })
+      return handleResponse(response)
+    } catch (error) {
+      return handleError(error)
+    }
+  },
 }
-
-export default api
 

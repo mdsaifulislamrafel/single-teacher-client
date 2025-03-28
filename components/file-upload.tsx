@@ -39,16 +39,31 @@ export function FileUpload({ onFileChange, accept = "*", maxSize = 5 }: FileUplo
         return
       }
 
-      // For other file types
-      const isAccepted = acceptedTypes.some(
-        (type) => fileType.includes(type.replace(".", "")) || selectedFile.name.toLowerCase().endsWith(type),
-      )
+      // Special handling for video files
+      if (accept === "video/*") {
+        // Accept any file that has 'video/' in its MIME type or common video extensions
+        const isVideo =
+          fileType.startsWith("video/") || /\.(mp4|mov|avi|wmv|flv|mkv|webm|m4v|3gp)$/i.test(selectedFile.name)
 
-      if (!isAccepted) {
-        setError(`File type not accepted. Please upload ${accept} files only`)
-        setFile(null)
-        onFileChange(null)
-        return
+        if (!isVideo) {
+          setError(`File type not accepted. Please upload video files only`)
+          setFile(null)
+          onFileChange(null)
+          return
+        }
+      }
+      // For other file types
+      else {
+        const isAccepted = acceptedTypes.some(
+          (type) => fileType.includes(type.replace(".", "")) || selectedFile.name.toLowerCase().endsWith(type),
+        )
+
+        if (!isAccepted) {
+          setError(`File type not accepted. Please upload ${accept} files only`)
+          setFile(null)
+          onFileChange(null)
+          return
+        }
       }
     }
 
