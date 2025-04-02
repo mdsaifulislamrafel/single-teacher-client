@@ -1,26 +1,27 @@
-import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import useAxiosPublic from '../../../hooks/useAxiosPublic';
-import { toast } from 'sonner';
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import useAxiosPublic from "../../../hooks/useAxiosPublic";
+import { useNavigate } from "react-router-dom";
 
 export default function CreateVideo() {
   const axiosPublic = useAxiosPublic();
   const queryClient = useQueryClient();
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedSubcategory, setSelectedSubcategory] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedSubcategory, setSelectedSubcategory] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [previewUrl, setPreviewUrl] = useState(null);
-
+  const navigate = useNavigate();
   const {
     register,
     handleSubmit,
     reset,
     watch,
-    formState: { errors, isValid },
-  } = useForm({ mode: 'onChange' });
+    formState: { errors, isSubmitting },
+  } = useForm({ mode: "onChange" });
 
-  const videoFile = watch('video')?.[0];
+  const videoFile = watch("video")?.[0];
 
   // Generate preview when video file changes
   useEffect(() => {
@@ -35,46 +36,53 @@ export default function CreateVideo() {
 
   // Fetch categories
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
-    queryKey: ['categories'],
+    queryKey: ["categories"],
     queryFn: async () => {
-      const res = await axiosPublic.get('/categories');
+      const res = await axiosPublic.get("/categories");
       return res.data;
-    }
+    },
   });
 
   // Fetch subcategories
-  const { data: subcategories = [], isLoading: subcategoriesLoading } = useQuery({
-    queryKey: ['subcategories', selectedCategory],
-    queryFn: async () => {
-      if (!selectedCategory) return [];
-      const res = await axiosPublic.get(`/categories/${selectedCategory}/subcategories`);
-      return res.data;
-    },
-    enabled: !!selectedCategory
-  });
+  const { data: subcategories = [], isLoading: subcategoriesLoading } =
+    useQuery({
+      queryKey: ["subcategories", selectedCategory],
+      queryFn: async () => {
+        if (!selectedCategory) return [];
+        const res = await axiosPublic.get(
+          `/categories/${selectedCategory}/subcategories`
+        );
+        return res.data;
+      },
+      enabled: !!selectedCategory,
+    });
 
   // Fetch videos
   const { data: videos = [], isLoading: videosLoading } = useQuery({
-    queryKey: ['videos', selectedSubcategory],
+    queryKey: ["videos", selectedSubcategory],
     queryFn: async () => {
       if (!selectedSubcategory) return [];
-      const res = await axiosPublic.get(`/subcategories/${selectedSubcategory}/videos`);
+      const res = await axiosPublic.get(
+        `/subcategories/${selectedSubcategory}/videos`
+      );
       return res.data;
     },
-    enabled: !!selectedSubcategory
+    enabled: !!selectedSubcategory,
   });
 
   // Upload video mutation
   const uploadVideoMutation = useMutation({
     mutationFn: async (formData) => {
       try {
-        const response = await axiosPublic.post('/videos', formData, {
+        const response = await axiosPublic.post("/videos", formData, {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            "Content-Type": "multipart/form-data",
           },
           onUploadProgress: (progressEvent) => {
             if (progressEvent.total) {
-              setUploadProgress(Math.round((progressEvent.loaded * 100) / progressEvent.total));
+              setUploadProgress(
+                Math.round((progressEvent.loaded * 100) / progressEvent.total)
+              );
             }
           },
         });
@@ -85,18 +93,20 @@ export default function CreateVideo() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(['videos', selectedSubcategory]);
-      toast.success('Video uploaded successfully!');
+      queryClient.invalidateQueries(["videos", selectedSubcategory]);
+      toast.success("Video uploaded successfully!");
       reset();
       setUploadProgress(0);
+      navigate('/admin/videos')
     },
     onError: (error) => {
-      const errorMessage = error.response?.data?.error || error.message || 'Upload failed';
+      const errorMessage =
+        error.response?.data?.error || error.message || "Upload failed";
       toast.error(errorMessage);
       setUploadProgress(0);
-    }
+    },
   });
-  
+
   // Delete video mutation
   const deleteVideoMutation = useMutation({
     mutationFn: async (videoId) => {
@@ -104,34 +114,35 @@ export default function CreateVideo() {
       return videoId;
     },
     onSuccess: (videoId) => {
-      queryClient.setQueryData(['videos', selectedSubcategory], (old) => 
-        old.filter(video => video._id !== videoId) || []
+      queryClient.setQueryData(
+        ["videos", selectedSubcategory],
+        (old) => old.filter((video) => video._id !== videoId) || []
       );
-      toast.success('Video deleted successfully!');
+      toast.success("Video deleted successfully!");
     },
     onError: (error) => {
-      const errorMessage = error.response?.data?.error || error.message || 'Delete failed';
+      const errorMessage =
+        error.response?.data?.error || error.message || "Delete failed";
       toast.error(errorMessage);
-    }
+    },
   });
 
   const onSubmit = async (data) => {
     try {
       const formData = new FormData();
-      formData.append('title', data.title);
-      formData.append('description', data.description || '');
-      formData.append('subcategory', selectedSubcategory);
-      formData.append('video', data.video[0]);
-  
+      formData.append("title", data.title);
+      formData.append("description", data.description || "");
+      formData.append("subcategory", selectedSubcategory);
+      formData.append("video", data.video[0]);
+
       await uploadVideoMutation.mutateAsync(formData);
     } catch (error) {
-      console.error('Submission error:', error);
+      console.error("Submission error:", error);
     }
   };
-  
 
   const handleDelete = async (videoId) => {
-    if (confirm('Are you sure you want to delete this video?')) {
+    if (confirm("Are you sure you want to delete this video?")) {
       await deleteVideoMutation.mutateAsync(videoId);
     }
   };
@@ -144,7 +155,7 @@ export default function CreateVideo() {
         {/* Upload Form */}
         <div className="lg:col-span-1 bg-white p-6 rounded-lg shadow">
           <h2 className="text-xl font-semibold mb-4">Upload New Video</h2>
-          
+
           <form onSubmit={handleSubmit(onSubmit)}>
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">Category</label>
@@ -153,7 +164,7 @@ export default function CreateVideo() {
                 value={selectedCategory}
                 onChange={(e) => {
                   setSelectedCategory(e.target.value);
-                  setSelectedSubcategory('');
+                  setSelectedSubcategory("");
                 }}
                 disabled={categoriesLoading}
               >
@@ -167,7 +178,9 @@ export default function CreateVideo() {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Subcategory</label>
+              <label className="block text-sm font-medium mb-1">
+                Subcategory
+              </label>
               <select
                 className="w-full p-2 border rounded"
                 value={selectedSubcategory}
@@ -184,63 +197,83 @@ export default function CreateVideo() {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Video Title *</label>
+              <label className="block text-sm font-medium mb-1">
+                Video Title *
+              </label>
               <input
                 type="text"
                 className="w-full p-2 border rounded"
-                {...register('title', { 
-                  required: 'Title is required',
+                {...register("title", {
+                  required: "Title is required",
                   minLength: {
                     value: 3,
-                    message: 'Title must be at least 3 characters'
-                  }
+                    message: "Title must be at least 3 characters",
+                  },
                 })}
               />
               {errors.title && (
-                <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.title.message}
+                </p>
               )}
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Description</label>
+              <label className="block text-sm font-medium mb-1">
+                Description
+              </label>
               <textarea
                 className="w-full p-2 border rounded"
                 rows={3}
-                {...register('description')}
+                {...register("description")}
               />
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Video File *</label>
+              <label className="block text-sm font-medium mb-1">
+                Video File *
+              </label>
               <input
                 type="file"
                 accept="video/*"
                 className="w-full p-2 border rounded"
-                {...register('video', { 
-                  required: 'Video file is required',
+                {...register("video", {
+                  required: "Video file is required",
                   validate: {
                     validFile: (files) => {
                       if (!files?.[0]) return true;
-                      const validTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo'];
-                      return validTypes.includes(files[0].type) || 
-                        'Only MP4, MOV, and AVI files are allowed';
+                      const validTypes = [
+                        "video/mp4",
+                        "video/quicktime",
+                        "video/x-msvideo",
+                      ];
+                      return (
+                        validTypes.includes(files[0].type) ||
+                        "Only MP4, MOV, and AVI files are allowed"
+                      );
                     },
                     maxSize: (files) => {
                       if (!files?.[0]) return true;
-                      return files[0].size <= 500 * 1024 * 1024 || 
-                        'File size must be less than 500MB';
-                    }
-                  }
+                      return (
+                        files[0].size <= 500 * 1024 * 1024 ||
+                        "File size must be less than 500MB"
+                      );
+                    },
+                  },
                 })}
               />
               {errors.video && (
-                <p className="text-red-500 text-xs mt-1">{errors.video.message}</p>
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.video.message}
+                </p>
               )}
             </div>
 
             {previewUrl && (
               <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">Preview</label>
+                <label className="block text-sm font-medium mb-1">
+                  Preview
+                </label>
                 <div className="aspect-video bg-black rounded overflow-hidden">
                   <video
                     src={previewUrl}
@@ -268,13 +301,19 @@ export default function CreateVideo() {
             <button
               type="submit"
               className={`w-full px-4 py-2 rounded ${
-                uploadVideoMutation.isLoading || !isValid || !selectedSubcategory
-                  ? 'bg-gray-300 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                !selectedSubcategory ||
+                isSubmitting ||
+                uploadVideoMutation.isLoading
+                  ? "bg-gray-300 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
               }`}
-              disabled={uploadVideoMutation.isLoading || !isValid || !selectedSubcategory}
+              disabled={
+                !selectedSubcategory ||
+                isSubmitting ||
+                uploadVideoMutation.isLoading
+              }
             >
-              {uploadVideoMutation.isLoading ? 'Uploading...' : 'Upload Video'}
+              {uploadVideoMutation.isLoading ? "Uploading..." : "Upload Video"}
             </button>
           </form>
         </div>
@@ -283,7 +322,9 @@ export default function CreateVideo() {
         <div className="lg:col-span-2">
           <div className="bg-white p-6 rounded-lg shadow">
             <h2 className="text-xl font-semibold mb-4">
-              {selectedSubcategory ? 'Videos in Selected Subcategory' : 'Select a Subcategory'}
+              {selectedSubcategory
+                ? "Videos in Selected Subcategory"
+                : "Select a Subcategory"}
             </h2>
 
             {videosLoading ? (
@@ -292,43 +333,58 @@ export default function CreateVideo() {
               </div>
             ) : videos.length === 0 ? (
               <p className="text-gray-500 text-center py-8">
-                {selectedSubcategory ? 'No videos found' : 'Please select a subcategory to view videos'}
+                {selectedSubcategory
+                  ? "No videos found"
+                  : "Please select a subcategory to view videos"}
               </p>
             ) : (
-              <div className="space-y-4">
-                {videos.map((video) => (
-                  <div key={video._id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-semibold text-lg">{video.title}</h3>
-                        {video.duration && (
-                          <p className="text-sm text-gray-600">
-                            Duration: {Math.floor(video.duration / 60)}m {video.duration % 60}s
-                          </p>
-                        )}
-                        <p className="text-xs text-gray-500 mt-1">
-                          Uploaded: {new Date(video.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleDelete(video._id)}
-                        className="text-red-500 hover:text-red-700"
-                        disabled={deleteVideoMutation.isLoading}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                    {video.url && (
-                      <div className="mt-2 aspect-video bg-black rounded overflow-hidden">
-                        <video
-                          src={video.url}
-                          controls
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="min-w-full table-auto">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">
+                        Title
+                      </th>
+                      <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">
+                        Duration
+                      </th>
+                      <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">
+                        Uploaded
+                      </th>
+                      <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {videos.map((video) => (
+                      <tr key={video._id} className="border-b hover:bg-gray-50">
+                        <td className="px-4 py-2 text-sm text-gray-800">
+                          {video.title}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-600">
+                          {video.duration
+                            ? `${Math.floor(video.duration / 60)}m ${
+                                video.duration % 60
+                              }s`
+                            : "N/A"}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-500">
+                          {new Date(video.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-500">
+                          <button
+                            onClick={() => handleDelete(video._id)}
+                            className="text-red-500 hover:text-red-700"
+                            disabled={deleteVideoMutation.isLoading}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

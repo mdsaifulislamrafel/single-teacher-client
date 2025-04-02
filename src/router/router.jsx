@@ -4,7 +4,6 @@ import HomePage from "../components/HomePage";
 import AdminLayout from "../components/admin/AdminLayout";
 import Dashboard from "../components/admin/Dashboard";
 import PaymentManagement from "../components/admin/PaymentManagement";
-import VideoManagement from "../components/admin/VideoManagement";
 import MyCourses from "../components/user/MyCourses";
 import MyPDFs from "../components/user/MyPDFs";
 import MyPayments from "../components/user/MyPayments";
@@ -20,6 +19,7 @@ import CreateCategory from "../components/admin/CategoryManage/CreateCategory";
 import CreateSubCategory from "../components/admin/SubCategoryManage/CreateSubCategory";
 import UpdateCategory from "../components/admin/CategoryManage/UpdateCategory";
 import CreateVideo from "../components/admin/Video/CreateVideo";
+import VideoManage from "../components/admin/Video/VideoManage";
 
 export const router = createBrowserRouter([
   {
@@ -32,10 +32,6 @@ export const router = createBrowserRouter([
         </div>
       </div>
     ),
-  },
-  {
-    path: "/video",
-    element: <CreateVideo />,
   },
   {
     path: "/register",
@@ -69,7 +65,8 @@ export const router = createBrowserRouter([
           { path: "create-categories", element: <CreateCategory /> },
           { path: "update-categories/:id", element: <UpdateCategory /> },
           { path: "create-subcategories", element: <CreateSubCategory /> },
-          { path: "videos", element: <VideoManagement /> },
+          { path: "create-videos", element: <CreateVideo /> },
+          { path: "videos", element: <VideoManage /> },
           { path: "payments", element: <PaymentManagement /> },
         ],
       },

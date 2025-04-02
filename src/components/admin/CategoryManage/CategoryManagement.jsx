@@ -5,6 +5,8 @@ import Loading from "../../Loading";
 import useAxiosPublic from "../../../hooks/useAxiosPublic";
 import { toast } from "sonner";
 import SubcategoryManage from "../SubCategoryManage/SubcategoryManage";
+import { MdDelete } from "react-icons/md";
+import { FaEdit } from "react-icons/fa";
 
 function CategoryManagement() {
   // const [categories, setCategories] = useState([]);
@@ -81,15 +83,15 @@ function CategoryManagement() {
                 </h2>
                 <div>
                   <Link to={`/admin/update-categories/${category._id}`}>
-                    <button className="text-blue-600 hover:text-blue-800 mr-3">
-                      এডিট
+                    <button className="text-blue-600 text-2xl hover:text-blue-800 mr-3">
+                    <FaEdit />
                     </button>
                   </Link>
                   <button
                     onClick={() => handleDelete(category._id)}
-                    className="text-red-600 hover:text-red-800"
+                    className="text-red-600 text-2xl hover:text-red-800"
                   >
-                    ডিলিট
+                   <MdDelete />
                   </button>
                 </div>
               </div>

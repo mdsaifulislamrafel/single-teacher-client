@@ -3,6 +3,7 @@ import useAxiosPublic from "../../../hooks/useAxiosPublic";
 import useUsers from "../../../hooks/useUsers";
 import moment from "moment";
 import Loading from "../../Loading";
+import { MdDelete } from "react-icons/md";
 
 function UserManagement() {
   const useAxiosSecure = useAxiosPublic();
@@ -59,9 +60,9 @@ function UserManagement() {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
                     onClick={() => handleDelete(user._id)}
-                    className="text-red-600 hover:text-red-800"
+                    className="text-red-600 text-2xl hover:text-red-800"
                   >
-                    ডিলিট
+                    <MdDelete />
                   </button>
                 </td>
               </tr>

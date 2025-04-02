@@ -3,6 +3,8 @@ import { toast } from "sonner";
 import useSubCategory from "../../../hooks/useSubCategory";
 import EditSubcategoryModal from "./EditSubcategoryModal";
 import Loading from "../../Loading";
+import { FaEdit } from "react-icons/fa";
+import { MdDelete } from "react-icons/md";
 
 function SubcategoryManage() {
   const { subcategories, loading, deleteMutation, updateMutation } =
@@ -61,15 +63,15 @@ function SubcategoryManage() {
               <div className="mt-4">
                 <button
                   onClick={() => handleEdit(sub)}
-                  className="text-blue-600 hover:text-blue-800 mr-3"
+                  className="text-blue-600 text-2xl hover:text-blue-800 mr-3"
                 >
-                  এডিট
+                  <FaEdit />
                 </button>
                 <button
                   onClick={() => handleDelete(sub._id)}
-                  className="text-red-600 hover:text-red-800"
+                  className="text-red-600 text-2xl hover:text-red-800"
                 >
-                  ডিলিট
+                  <MdDelete />
                 </button>
               </div>
             </div>
