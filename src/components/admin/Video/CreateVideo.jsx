@@ -1,395 +1,294 @@
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import useAxiosPublic from "../../../hooks/useAxiosPublic";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react"
+import { useForm, Controller } from "react-hook-form"
+import { useQuery } from "@tanstack/react-query"
+import useAxiosPublic from "../../../hooks/useAxiosPublic"
+
+
 
 export default function CreateVideo() {
-  const axiosPublic = useAxiosPublic();
-  const queryClient = useQueryClient();
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [selectedSubcategory, setSelectedSubcategory] = useState("");
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [previewUrl, setPreviewUrl] = useState(null);
-  const navigate = useNavigate();
+  const axiosPublic = useAxiosPublic()
+  const [selectedCategory, setSelectedCategory] = useState("")
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(false)
+
   const {
     register,
     handleSubmit,
+    control,
     reset,
     watch,
-    formState: { errors, isSubmitting },
-  } = useForm({ mode: "onChange" });
+    setValue,
+    formState: { errors },
+  } = useForm({
+    defaultValues: {
+      title: "",
+      description: "",
+      category: "",
+      subcategory: "",
+      video: null,
+    },
+    mode: "onChange",
+  })
 
-  const videoFile = watch("video")?.[0];
+  const watchCategory = watch("category")
+  const videoFile = watch("video")?.[0]
 
   // Generate preview when video file changes
   useEffect(() => {
     if (videoFile) {
-      const url = URL.createObjectURL(videoFile);
-      setPreviewUrl(url);
-      return () => URL.revokeObjectURL(url);
+      const url = URL.createObjectURL(videoFile)
+      setPreviewUrl(url)
+      return () => URL.revokeObjectURL(url)
     } else {
-      setPreviewUrl(null);
+      setPreviewUrl(null)
     }
-  }, [videoFile]);
+  }, [videoFile])
+
+  useEffect(() => {
+    setSelectedCategory(watchCategory)
+  }, [watchCategory])
+
+  useEffect(() => {
+    if (selectedCategory) {
+      setValue("subcategory", "")
+    }
+  }, [selectedCategory, setValue])
 
   // Fetch categories
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
-      const res = await axiosPublic.get("/categories");
-      return res.data;
+      const res = await axiosPublic.get("/categories")
+      return res.data
     },
-  });
+  })
 
   // Fetch subcategories
-  const { data: subcategories = [], isLoading: subcategoriesLoading } =
-    useQuery({
-      queryKey: ["subcategories", selectedCategory],
-      queryFn: async () => {
-        if (!selectedCategory) return [];
-        const res = await axiosPublic.get(
-          `/categories/${selectedCategory}/subcategories`
-        );
-        return res.data;
-      },
-      enabled: !!selectedCategory,
-    });
-
-  // Fetch videos
-  const { data: videos = [], isLoading: videosLoading } = useQuery({
-    queryKey: ["videos", selectedSubcategory],
+  const { data: subcategories = [], isLoading: subcategoriesLoading } = useQuery({
+    queryKey: ["subcategories", selectedCategory],
     queryFn: async () => {
-      if (!selectedSubcategory) return [];
-      const res = await axiosPublic.get(
-        `/subcategories/${selectedSubcategory}/videos`
-      );
-      return res.data;
+      if (!selectedCategory) return []
+      const res = await axiosPublic.get(`/categories/${selectedCategory}/subcategories`)
+      return res.data
     },
-    enabled: !!selectedSubcategory,
-  });
-
-  // Upload video mutation
-  const uploadVideoMutation = useMutation({
-    mutationFn: async (formData) => {
-      try {
-        const response = await axiosPublic.post("/videos", formData, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-          onUploadProgress: (progressEvent) => {
-            if (progressEvent.total) {
-              setUploadProgress(
-                Math.round((progressEvent.loaded * 100) / progressEvent.total)
-              );
-            }
-          },
-        });
-        return response.data;
-      } catch (error) {
-        console.error("Error response:", error.response);
-        throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries(["videos", selectedSubcategory]);
-      toast.success("Video uploaded successfully!");
-      reset();
-      setUploadProgress(0);
-      navigate('/admin/videos')
-    },
-    onError: (error) => {
-      const errorMessage =
-        error.response?.data?.error || error.message || "Upload failed";
-      toast.error(errorMessage);
-      setUploadProgress(0);
-    },
-  });
-
-  // Delete video mutation
-  const deleteVideoMutation = useMutation({
-    mutationFn: async (videoId) => {
-      await axiosPublic.delete(`/videos/${videoId}`);
-      return videoId;
-    },
-    onSuccess: (videoId) => {
-      queryClient.setQueryData(
-        ["videos", selectedSubcategory],
-        (old) => old.filter((video) => video._id !== videoId) || []
-      );
-      toast.success("Video deleted successfully!");
-    },
-    onError: (error) => {
-      const errorMessage =
-        error.response?.data?.error || error.message || "Delete failed";
-      toast.error(errorMessage);
-    },
-  });
+    enabled: !!selectedCategory,
+  })
 
   const onSubmit = async (data) => {
     try {
-      const formData = new FormData();
-      formData.append("title", data.title);
-      formData.append("description", data.description || "");
-      formData.append("subcategory", selectedSubcategory);
-      formData.append("video", data.video[0]);
+      setLoading(true)
+      setError(null)
+      setSuccess(false)
+      setUploadProgress(0)
 
-      await uploadVideoMutation.mutateAsync(formData);
-    } catch (error) {
-      console.error("Submission error:", error);
-    }
-  };
+      const formData = new FormData()
+      formData.append("title", data.title)
+      formData.append("description", data.description)
+      formData.append("subcategory", data.subcategory)
+      formData.append("video", data.video[0])
 
-  const handleDelete = async (videoId) => {
-    if (confirm("Are you sure you want to delete this video?")) {
-      await deleteVideoMutation.mutateAsync(videoId);
+      await axiosPublic.post("/videos", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            setUploadProgress(Math.round((progressEvent.loaded * 100) / progressEvent.total))
+          }
+        },
+      })
+
+      setSuccess(true)
+      reset()
+      setUploadProgress(0)
+      setSelectedCategory("")
+      setPreviewUrl(null)
+    } catch (err) {
+      console.error("Error uploading video:", err)
+      setError(err.response?.data?.error || "ভিডিও আপলোড করতে ব্যর্থ হয়েছে")
+
+      // Handle VdoCipher quota limit specifically
+      if (err.response?.data?.quotaExceeded) {
+        setError("আপনি ট্রায়াল অ্যাকাউন্টের সর্বোচ্চ ভিডিও লিমিটে পৌঁছেছেন। দয়া করে কিছু ভিডিও ডিলিট করুন বা আপনার প্ল্যান আপগ্রেড করুন।")
+      }
+    } finally {
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <div className="container mx-auto p-4 max-w-6xl">
-      <h1 className="text-2xl font-bold mb-6">Video Management</h1>
+      <h1 className="text-2xl font-bold mb-6">নতুন ভিডিও আপলোড করুন</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Upload Form */}
         <div className="lg:col-span-1 bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold mb-4">Upload New Video</h2>
+          <h2 className="text-xl font-semibold mb-4">ভিডিও আপলোড</h2>
+
+          {success && <div className="mb-4 p-4 bg-green-100 text-green-700 rounded-md">ভিডিও সফলভাবে আপলোড হয়েছে!</div>}
+
+          {error && <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-md">{error}</div>}
 
           <form onSubmit={handleSubmit(onSubmit)}>
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Category</label>
-              <select
-                className="w-full p-2 border rounded"
-                value={selectedCategory}
-                onChange={(e) => {
-                  setSelectedCategory(e.target.value);
-                  setSelectedSubcategory("");
-                }}
-                disabled={categoriesLoading}
-              >
-                <option value="">Select a category</option>
-                {categories.map((category) => (
-                  <option key={category._id} value={category._id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">
-                Subcategory
-              </label>
-              <select
-                className="w-full p-2 border rounded"
-                value={selectedSubcategory}
-                onChange={(e) => setSelectedSubcategory(e.target.value)}
-                disabled={!selectedCategory || subcategoriesLoading}
-              >
-                <option value="">Select a subcategory</option>
-                {subcategories.map((subcategory) => (
-                  <option key={subcategory._id} value={subcategory._id}>
-                    {subcategory.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">
-                Video Title *
-              </label>
-              <input
-                type="text"
-                className="w-full p-2 border rounded"
-                {...register("title", {
-                  required: "Title is required",
-                  minLength: {
-                    value: 3,
-                    message: "Title must be at least 3 characters",
-                  },
-                })}
+              <label className="block text-sm font-medium mb-1">ক্যাটাগরি *</label>
+              <Controller
+                name="category"
+                control={control}
+                rules={{ required: "ক্যাটাগরি নির্বাচন করুন" }}
+                render={({ field }) => (
+                  <select
+                    {...field}
+                    className={`w-full p-2 border ${errors.category ? "border-red-500" : "border-gray-300"} rounded`}
+                    disabled={categoriesLoading}
+                  >
+                    <option value="">ক্যাটাগরি নির্বাচন করুন</option>
+                    {categories.map((category) => (
+                      <option key={category._id} value={category._id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               />
-              {errors.title && (
-                <p className="text-red-500 text-xs mt-1">
-                  {errors.title.message}
-                </p>
+              {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category.message}</p>}
+              {categoriesLoading && <p className="text-sm text-gray-500 mt-1">ক্যাটাগরি লোড হচ্ছে...</p>}
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">সাবক্যাটাগরি *</label>
+              <Controller
+                name="subcategory"
+                control={control}
+                rules={{ required: "সাবক্যাটাগরি নির্বাচন করুন" }}
+                render={({ field }) => (
+                  <select
+                    {...field}
+                    className={`w-full p-2 border ${errors.subcategory ? "border-red-500" : "border-gray-300"} rounded`}
+                    disabled={!selectedCategory || subcategoriesLoading}
+                  >
+                    <option value="">সাবক্যাটাগরি নির্বাচন করুন</option>
+                    {subcategories.map((subcategory) => (
+                      <option key={subcategory._id} value={subcategory._id}>
+                        {subcategory.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              />
+              {errors.subcategory && <p className="text-red-500 text-xs mt-1">{errors.subcategory.message}</p>}
+              {subcategoriesLoading && <p className="text-sm text-gray-500 mt-1">সাবক্যাটাগরি লোড হচ্ছে...</p>}
+              {selectedCategory && subcategories.length === 0 && !subcategoriesLoading && (
+                <p className="text-red-500 text-xs mt-1">এই ক্যাটাগরিতে কোন সাবক্যাটাগরি নেই</p>
               )}
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">
-                Description
-              </label>
-              <textarea
-                className="w-full p-2 border rounded"
-                rows={3}
-                {...register("description")}
+              <label className="block text-sm font-medium mb-1">শিরোনাম *</label>
+              <input
+                type="text"
+                className={`w-full p-2 border ${errors.title ? "border-red-500" : "border-gray-300"} rounded`}
+                {...register("title", {
+                  required: "শিরোনাম দিতে হবে",
+                  minLength: {
+                    value: 3,
+                    message: "শিরোনাম কমপক্ষে ৩ অক্ষর হতে হবে",
+                  },
+                })}
               />
+              {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">
-                Video File *
-              </label>
+              <label className="block text-sm font-medium mb-1">বিবরণ</label>
+              <textarea className="w-full p-2 border rounded" rows={3} {...register("description")} />
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">ভিডিও ফাইল *</label>
               <input
                 type="file"
                 accept="video/*"
-                className="w-full p-2 border rounded"
+                className={`w-full p-2 border ${errors.video ? "border-red-500" : "border-gray-300"} rounded`}
                 {...register("video", {
-                  required: "Video file is required",
+                  required: "ভিডিও ফাইল আপলোড করুন",
                   validate: {
-                    validFile: (files) => {
-                      if (!files?.[0]) return true;
-                      const validTypes = [
-                        "video/mp4",
-                        "video/quicktime",
-                        "video/x-msvideo",
-                      ];
-                      return (
-                        validTypes.includes(files[0].type) ||
-                        "Only MP4, MOV, and AVI files are allowed"
-                      );
+                    fileType: (files) => {
+                      if (!files || files.length === 0) return true
+                      const file = files[0]
+                      return file.type.startsWith("video/") || "শুধুমাত্র ভিডিও ফাইল আপলোড করুন"
                     },
-                    maxSize: (files) => {
-                      if (!files?.[0]) return true;
-                      return (
-                        files[0].size <= 500 * 1024 * 1024 ||
-                        "File size must be less than 500MB"
-                      );
+                    fileSize: (files) => {
+                      if (!files || files.length === 0) return true
+                      const file = files[0]
+                      return file.size <= 500 * 1024 * 1024 || "ফাইল সাইজ ৫০০MB এর বেশি হতে পারবে না"
                     },
                   },
                 })}
               />
-              {errors.video && (
-                <p className="text-red-500 text-xs mt-1">
-                  {errors.video.message}
-                </p>
-              )}
+              {errors.video && <p className="text-red-500 text-xs mt-1">{errors.video.message}</p>}
+              <p className="mt-1 text-xs text-gray-500">সমর্থিত ফরম্যাট: MP4, MOV, AVI, ইত্যাদি (সর্বোচ্চ ৫০০MB)</p>
             </div>
-
-            {previewUrl && (
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-1">
-                  Preview
-                </label>
-                <div className="aspect-video bg-black rounded overflow-hidden">
-                  <video
-                    src={previewUrl}
-                    controls
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-              </div>
-            )}
 
             {uploadProgress > 0 && uploadProgress < 100 && (
               <div className="mb-4">
                 <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div
-                    className="bg-blue-600 h-2.5 rounded-full"
-                    style={{ width: `${uploadProgress}%` }}
-                  ></div>
+                  <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
                 </div>
-                <p className="text-sm text-gray-600 mt-1">
-                  Uploading: {uploadProgress}%
-                </p>
+                <p className="text-sm text-gray-600 mt-1">আপলোড হচ্ছে: {uploadProgress}%</p>
               </div>
             )}
 
             <button
               type="submit"
               className={`w-full px-4 py-2 rounded ${
-                !selectedSubcategory ||
-                isSubmitting ||
-                uploadVideoMutation.isLoading
-                  ? "bg-gray-300 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700 text-white"
+                loading ? "bg-gray-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 text-white"
               }`}
-              disabled={
-                !selectedSubcategory ||
-                isSubmitting ||
-                uploadVideoMutation.isLoading
-              }
+              disabled={loading}
             >
-              {uploadVideoMutation.isLoading ? "Uploading..." : "Upload Video"}
+              {loading ? "আপলোড হচ্ছে..." : "ভিডিও আপলোড করুন"}
             </button>
           </form>
         </div>
 
-        {/* Video List */}
+        {/* Preview Section */}
         <div className="lg:col-span-2">
           <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-semibold mb-4">
-              {selectedSubcategory
-                ? "Videos in Selected Subcategory"
-                : "Select a Subcategory"}
-            </h2>
+            <h2 className="text-xl font-semibold mb-4">ভিডিও প্রিভিউ</h2>
 
-            {videosLoading ? (
-              <div className="flex justify-center items-center h-32">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            {previewUrl ? (
+              <div className="aspect-video bg-black rounded-xl overflow-hidden">
+                <video src={previewUrl} controls className="w-full h-full object-contain" />
               </div>
-            ) : videos.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">
-                {selectedSubcategory
-                  ? "No videos found"
-                  : "Please select a subcategory to view videos"}
-              </p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full table-auto">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">
-                        Title
-                      </th>
-                      <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">
-                        Duration
-                      </th>
-                      <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">
-                        Uploaded
-                      </th>
-                      <th className="px-4 py-2 text-left text-sm font-medium text-gray-600">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {videos.map((video) => (
-                      <tr key={video._id} className="border-b hover:bg-gray-50">
-                        <td className="px-4 py-2 text-sm text-gray-800">
-                          {video.title}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-600">
-                          {video.duration
-                            ? `${Math.floor(video.duration / 60)}m ${
-                                video.duration % 60
-                              }s`
-                            : "N/A"}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-500">
-                          {new Date(video.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-500">
-                          <button
-                            onClick={() => handleDelete(video._id)}
-                            className="text-red-500 hover:text-red-700"
-                            disabled={deleteVideoMutation.isLoading}
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="flex justify-center items-center h-64 bg-gray-100 rounded-xl">
+                <p className="text-gray-500">ভিডিও আপলোড করলে এখানে প্রিভিউ দেখা যাবে</p>
+              </div>
+            )}
+
+            <div className="mt-6">
+              <h3 className="font-medium mb-2">আপলোড নির্দেশনা:</h3>
+              <ul className="list-disc pl-5 space-y-1 text-sm text-gray-600">
+                <li>ভিডিও ফাইল সর্বোচ্চ ৫০০MB হতে পারবে</li>
+                <li>সমর্থিত ফরম্যাট: MP4, MOV, AVI, ইত্যাদি</li>
+                <li>ভিডিও আপলোড করার আগে সঠিক ক্যাটাগরি এবং সাবক্যাটাগরি নির্বাচন করুন</li>
+                <li>ভিডিও আপলোড হতে কিছু সময় লাগতে পারে, দয়া করে ধৈর্য ধরুন</li>
+              </ul>
+            </div>
+
+            {success && (
+              <div className="mt-6 p-4 bg-green-100 text-green-700 rounded-md">
+                <p className="font-medium">ভিডিও সফলভাবে আপলোড হয়েছে!</p>
+                <p className="text-sm mt-1">আপনার ভিডিও প্রক্রিয়া করা হচ্ছে এবং শীঘ্রই উপলব্ধ হবে।</p>
               </div>
             )}
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }
+

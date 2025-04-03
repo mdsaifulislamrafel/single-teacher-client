@@ -1,150 +1,142 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FaExclamationTriangle, FaRedo, FaPlus } from "react-icons/fa";
-import { Link } from "react-router-dom";
-import { toast } from "sonner";
-import useAxiosPublic from "../../../hooks/useAxiosPublic";
+import { useState, useEffect } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { FaExclamationTriangle, FaRedo, FaPlus } from "react-icons/fa"
+import { Link } from "react-router-dom"
+import { toast } from "sonner"
+import useAxiosPublic from "../../hooks/useAxiosPublic"
 
 // সিম্পল axios ইনস্ট্যান্স
 
-const VideoManage = () => {
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [selectedSubcategory, setSelectedSubcategory] = useState("");
-  const [videoStates, setVideoStates] = useState({});
-  const queryClient = useQueryClient();
-  const axiosPublic = useAxiosPublic();
-  const isAdmin = true;
+const VideoList = () => {
+  const [selectedCategory, setSelectedCategory] = useState("")
+  const [selectedSubcategory, setSelectedSubcategory] = useState("")
+  const [videoStates, setVideoStates] = useState({})
+  const queryClient = useQueryClient()
+  const  axiosPublic = useAxiosPublic()
+  const isAdmin = true
+
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
-      const res = await axiosPublic.get("/categories");
-      return res.data;
+      const res = await axiosPublic.get("/categories")
+      return res.data
     },
-  });
+  })
 
   // সাবক্যাটাগরি ফেচ করা
-  const { data: subcategories = [], isLoading: subcategoriesLoading } =
-    useQuery({
-      queryKey: ["subcategories", selectedCategory],
-      queryFn: async () => {
-        if (!selectedCategory) return [];
-        const res = await axiosPublic.get(
-          `/categories/${selectedCategory}/subcategories`
-        );
-        return res.data;
-      },
-      enabled: !!selectedCategory,
-    });
+  const { data: subcategories = [], isLoading: subcategoriesLoading } = useQuery({
+    queryKey: ["subcategories", selectedCategory],
+    queryFn: async () => {
+      if (!selectedCategory) return []
+      const res = await axiosPublic.get(`/categories/${selectedCategory}/subcategories`)
+      return res.data
+    },
+    enabled: !!selectedCategory,
+  })
 
   // ভিডিও ফেচ করা
-  const {
-    data: videos = [],
+  const { 
+    data: videos = [], 
     isLoading: videosLoading,
     isError: videosError,
-    error: videosErrorData,
+    error: videosErrorData
   } = useQuery({
     queryKey: ["videos", selectedSubcategory],
     queryFn: async () => {
-      if (!selectedSubcategory) return [];
-      const res = await axiosPublic.get(
-        `/subcategories/${selectedSubcategory}/videos`
-      );
-      return res.data;
+      if (!selectedSubcategory) return []
+      const res = await axiosPublic.get(`/subcategories/${selectedSubcategory}/videos`)
+      return res.data
     },
     enabled: !!selectedSubcategory,
-  });
+  })
 
   // ভিডিও ডিলিট মিউটেশন
-  // Delete video mutation
   const deleteVideoMutation = useMutation({
     mutationFn: async (videoId) => {
-      const response = await axiosPublic.delete(`/videos/${videoId}`);
-      return response.data;
+      await axiosPublic.delete(`/videos/${videoId}`)
+      return videoId
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries(["videos", selectedSubcategory]);
-      toast.success("Video deleted successfully!");
+    onSuccess: (videoId) => {
+      queryClient.setQueryData(
+        ["videos", selectedSubcategory],
+        (old) => old.filter((video) => video._id !== videoId) || []
+      )
+      toast.success("ভিডিও সফলভাবে ডিলিট করা হয়েছে!")
     },
     onError: (error) => {
-      const errorMessage =
-        error.response?.data?.message ||
-        "Video was deleted locally but there was an issue with VdoCipher";
-      toast.error(errorMessage);
+      const errorMessage = error.response?.data?.error || error.message || "ডিলিট করতে ব্যর্থ হয়েছে"
+      toast.error(errorMessage)
     },
-  });
-
-  const handleDelete = async (videoId) => {
-    if (confirm("Are you sure you want to delete this video?")) {
-      await deleteVideoMutation.mutateAsync(videoId);
-    }
-  };
+  })
 
   // ভিডিও স্টেট আপডেট করার ফাংশন
   const updateVideoState = (videoId, updates) => {
-    setVideoStates((prev) => ({
+    setVideoStates(prev => ({
       ...prev,
       [videoId]: {
         ...(prev[videoId] || {}),
-        ...updates,
-      },
-    }));
-  };
+        ...updates
+      }
+    }))
+  }
 
   // সব ভিডিও লোড করার ফাংশন
   useEffect(() => {
     if (videos && videos.length > 0) {
       // সব ভিডিওর জন্য প্লেব্যাক ইনফো লোড করা
-      videos.forEach((video) => {
-        loadVideoPlaybackInfo(video);
-      });
+      videos.forEach(video => {
+        loadVideoPlaybackInfo(video)
+      })
     }
-  }, [videos]);
+  }, [videos])
 
   // ভিডিও প্লেব্যাক ইনফো লোড করার ফাংশন
   const loadVideoPlaybackInfo = async (video) => {
-    if (!video || !video._id) return;
-
-    updateVideoState(video._id, { loading: true, error: null });
-
+    if (!video || !video._id) return
+    
+    updateVideoState(video._id, { loading: true, error: null })
+    
     try {
-      const res = await axiosPublic.get(`/videos/${video._id}/playback`);
-
+      const res = await axiosPublic.get(`/videos/${video._id}/playback`)
+      
       if (!res.data?.otp || !res.data?.playbackInfo) {
-        throw new Error("ভিডিও প্লেব্যাক ডাটা পাওয়া যায়নি");
+        throw new Error("ভিডিও প্লেব্যাক ডাটা পাওয়া যায়নি")
       }
-
-      updateVideoState(video._id, {
+      
+      updateVideoState(video._id, { 
         playbackInfo: res.data,
         loading: false,
-        error: null,
-      });
+        error: null
+      })
     } catch (err) {
-      console.error("ভিডিও প্লেব্যাক এরর:", err);
+      console.error("ভিডিও প্লেব্যাক এরর:", err)
       updateVideoState(video._id, {
-        error:
-          err.response?.data?.message ||
-          err.message ||
-          "ভিডিও লোড করতে সমস্যা হয়েছে",
-        loading: false,
-      });
+        error: err.response?.data?.message || err.message || "ভিডিও লোড করতে সমস্যা হয়েছে",
+        loading: false
+      })
     }
-  };
+  }
+
+  // ভিডিও ডিলিট করার ফাংশন
+  const handleDelete = async (videoId) => {
+    if (window.confirm("আপনি কি নিশ্চিত এই ভিডিওটি ডিলিট করতে চান?")) {
+      await deleteVideoMutation.mutateAsync(videoId)
+    }
+  }
 
   // আবার চেষ্টা করার ফাংশন
   const retryLoading = (video) => {
-    loadVideoPlaybackInfo(video);
-  };
+    loadVideoPlaybackInfo(video)
+  }
 
   return (
     <div className="container mx-auto p-4 max-w-6xl">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 md:gap-0">
-        <h1 className="text-2xl md:text-3xl font-bold text-center md:text-left">
-          ভিডিও ম্যানেজমেন্ট
-        </h1>
-        <Link to={"/admin/create-videos"}>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm md:text-base">
-            <FaPlus className="w-4 h-4" /> <span>নতুন ভিডিও আপলোড করুন</span>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">ভিডিও ম্যানেজমেন্ট</h1>
+        <Link to={'/admin/create-videos'}>
+          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2">
+            <FaPlus /> নতুন ভিডিও আপলোড করুন
           </button>
         </Link>
       </div>
@@ -157,8 +149,8 @@ const VideoManage = () => {
               className="w-full p-2 border rounded"
               value={selectedCategory}
               onChange={(e) => {
-                setSelectedCategory(e.target.value);
-                setSelectedSubcategory("");
+                setSelectedCategory(e.target.value)
+                setSelectedSubcategory("")
               }}
               disabled={categoriesLoading}
             >
@@ -202,9 +194,7 @@ const VideoManage = () => {
               <span>ভিডিও লোড করতে সমস্যা: {videosErrorData?.message}</span>
             </div>
             <button
-              onClick={() =>
-                queryClient.invalidateQueries(["videos", selectedSubcategory])
-              }
+              onClick={() => queryClient.invalidateQueries(["videos", selectedSubcategory])}
               className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
               আবার চেষ্টা করুন
@@ -219,9 +209,9 @@ const VideoManage = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {videos.map((video) => {
-              const videoState = videoStates[video._id] || {};
-              const { loading, error, playbackInfo } = videoState;
-
+              const videoState = videoStates[video._id] || {}
+              const { loading, error, playbackInfo } = videoState
+              
               return (
                 <div
                   key={video._id}
@@ -300,13 +290,13 @@ const VideoManage = () => {
                     </div>
                   </div>
                 </div>
-              );
+              )
             })}
           </div>
         )}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default VideoManage;
+export default VideoList

@@ -5,11 +5,16 @@ import { useForm } from "react-hook-form";
 import { useAuth } from "../provider/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
-import Lottie from "react-lottie-player";  // Correct Lottie import
-import signup from "../assets/signup_animation.json";  // Correct path for animation file
+import Lottie from "react-lottie-player"; // Correct Lottie import
+import signup from "../assets/signup_animation.json"; // Correct path for animation file
 
 const RegisterForm = () => {
-  const { register, handleSubmit, formState: { errors, isSubmitting }, watch } = useForm();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    watch,
+  } = useForm();
   const { register: signUp, error: authError, user } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
@@ -27,6 +32,7 @@ const RegisterForm = () => {
     const result = await signUp(formData);
     if (result.success) {
       toast.success("Registration successful!", { duration: 1000 });
+      setTimeout(() => window.location.reload(), 500);
       navigate("/");
     }
   };
@@ -38,11 +44,18 @@ const RegisterForm = () => {
     <div className="flex justify-center items-center min-h-screen bg-gray-100 p-5">
       <div className="flex flex-col md:flex-row items-center justify-center w-full max-w-4xl bg-white p-8 rounded-md shadow-lg space-y-6 md:space-y-0 md:space-x-8">
         <div className="w-full md:w-1/2">
-          <Lottie className="w-full h-auto" animationData={signup} loop={true} play={true} />
+          <Lottie
+            className="w-full h-auto"
+            animationData={signup}
+            loop={true}
+            play={true}
+          />
         </div>
         <div className="w-full md:w-1/2 space-y-4">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <h2 className="text-3xl font-semibold text-center text-blue-400">Registration Now!</h2>
+            <h2 className="text-3xl font-semibold text-center text-blue-400">
+              Registration Now!
+            </h2>
 
             {/* Name Field */}
             <div className="relative">
@@ -53,7 +66,11 @@ const RegisterForm = () => {
                 className="border border-gray-300 rounded-lg pl-10 p-3 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={isSubmitting}
               />
-              {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>}
+              {errors.name && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.name.message}
+                </p>
+              )}
             </div>
 
             {/* Email Field */}
@@ -71,7 +88,11 @@ const RegisterForm = () => {
                 className="border border-gray-300 rounded-lg pl-10 p-3 w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={isSubmitting}
               />
-              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
+              {errors.email && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.email.message}
+                </p>
+              )}
             </div>
 
             {/* Password Field */}
@@ -80,7 +101,10 @@ const RegisterForm = () => {
               <input
                 {...register("password", {
                   required: "Password is required",
-                  minLength: { value: 8, message: "Password must be at least 8 characters" },
+                  minLength: {
+                    value: 8,
+                    message: "Password must be at least 8 characters",
+                  },
                 })}
                 type={showPassword ? "text" : "password"}
                 placeholder="Password"
@@ -92,9 +116,17 @@ const RegisterForm = () => {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
               >
-                {showPassword ? <AiOutlineEyeInvisible size={20} /> : <AiOutlineEye size={20} />}
+                {showPassword ? (
+                  <AiOutlineEyeInvisible size={20} />
+                ) : (
+                  <AiOutlineEye size={20} />
+                )}
               </button>
-              {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>}
+              {errors.password && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.password.message}
+                </p>
+              )}
             </div>
 
             {/* Confirm Password Field */}
@@ -103,7 +135,8 @@ const RegisterForm = () => {
               <input
                 {...register("confirmPassword", {
                   required: "Confirm Password is required",
-                  validate: value => value === password || "Passwords do not match",
+                  validate: (value) =>
+                    value === password || "Passwords do not match",
                 })}
                 type={showConfirmPassword ? "text" : "password"}
                 placeholder="Confirm Password"
@@ -115,9 +148,17 @@ const RegisterForm = () => {
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
               >
-                {showConfirmPassword ? <AiOutlineEyeInvisible size={20} /> : <AiOutlineEye size={20} />}
+                {showConfirmPassword ? (
+                  <AiOutlineEyeInvisible size={20} />
+                ) : (
+                  <AiOutlineEye size={20} />
+                )}
               </button>
-              {errors.confirmPassword && <p className="text-red-500 text-sm mt-1">{errors.confirmPassword.message}</p>}
+              {errors.confirmPassword && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.confirmPassword.message}
+                </p>
+              )}
             </div>
 
             {/* Avatar Upload Field */}

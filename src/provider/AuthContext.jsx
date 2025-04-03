@@ -107,7 +107,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     checkAuthStatus();
-  }, []);
+  }, [api]);
 
   const register = async (formData) => {
     try {

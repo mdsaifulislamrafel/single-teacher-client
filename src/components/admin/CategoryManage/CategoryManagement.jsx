@@ -9,15 +9,13 @@ import { MdDelete } from "react-icons/md";
 import { FaEdit } from "react-icons/fa";
 
 function CategoryManagement() {
-  // const [categories, setCategories] = useState([]);
   const [activeTab, setActiveTab] = useState("categories");
   const [category, loading, refetch] = useCategory();
   const axiosSecure = useAxiosPublic();
 
-
   if (loading) return <Loading />;
+  
   const handleDelete = async (id) => {
-    // TODO: Delete category from API
     const res = await axiosSecure.delete(`/categories/${id}`);
     if (res.status === 200) {
       toast.success(res.data.message, {
@@ -26,6 +24,7 @@ function CategoryManagement() {
       refetch();
     }
   };
+  
   return (
     <div className="p-4 max-w-4xl mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
@@ -71,32 +70,45 @@ function CategoryManagement() {
       </div>
 
       {activeTab === "categories" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {category?.map((category) => (
-            <div
-              key={category._id}
-              className="bg-white rounded-lg shadow-md p-6"
-            >
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg sm:text-xl font-semibold">
-                  {category.name}
-                </h2>
-                <div>
-                  <Link to={`/admin/update-categories/${category._id}`}>
-                    <button className="text-blue-600 text-2xl hover:text-blue-800 mr-3">
-                    <FaEdit />
-                    </button>
-                  </Link>
-                  <button
-                    onClick={() => handleDelete(category._id)}
-                    className="text-red-600 text-2xl hover:text-red-800"
-                  >
-                   <MdDelete />
-                  </button>
-                </div>
-              </div>
+        <div>
+          {category?.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 text-lg">কোনো ক্যাটাগরি পাওয়া যায়নি</p>
+              <Link to="/admin/create-categories">
+                <button className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                  ক্যাটাগরি যোগ করুন
+                </button>
+              </Link>
             </div>
-          ))}
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {category?.map((category) => (
+                <div
+                  key={category._id}
+                  className="bg-white rounded-lg shadow-md p-6"
+                >
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg sm:text-xl font-semibold">
+                      {category.name}
+                    </h2>
+                    <div>
+                      <Link to={`/admin/update-categories/${category._id}`}>
+                        <button className="text-blue-600 text-2xl hover:text-blue-800 mr-3">
+                          <FaEdit />
+                        </button>
+                      </Link>
+                      <button
+                        onClick={() => handleDelete(category._id)}
+                        className="text-red-600 text-2xl hover:text-red-800"
+                      >
+                        <MdDelete />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <SubcategoryManage />

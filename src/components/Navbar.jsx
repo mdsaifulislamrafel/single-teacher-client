@@ -14,8 +14,9 @@ function Navbar() {
 
   const handleLogout = () => {
     logout();
-    toast.success("Logout Successful", { duration: 2000 });
     setIsDropdownOpen(false);
+    setTimeout(() => window.location.reload(), 500); 
+    toast.success("Logout Successful", { duration: 2000 });
   };
 
   // Close dropdown when clicking outside
@@ -48,7 +49,11 @@ function Navbar() {
   }, []);
 
   return (
-    <nav className={`bg-white shadow-md fixed top-0 left-0 w-full z-50 transition-transform duration-300 ${isVisible ? "translate-y-0" : "-translate-y-full"}`}>
+    <nav
+      className={`bg-white shadow-md fixed top-0 left-0 w-full z-50 transition-transform duration-300 ${
+        isVisible ? "translate-y-0" : "-translate-y-full"
+      }`}
+    >
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="text-xl font-bold">
@@ -57,7 +62,12 @@ function Navbar() {
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-6">
-            <Link to="/" className="hover:text-blue-600 transition-all duration-300">হোম</Link>
+            <Link
+              to="/"
+              className="hover:text-blue-600 transition-all duration-300"
+            >
+              হোম
+            </Link>
 
             {user ? (
               <div className="relative" ref={dropdownRef}>
@@ -68,22 +78,37 @@ function Navbar() {
                   <div className="w-10 h-10 rounded-full overflow-hidden transition-all duration-300 hover:scale-105">
                     <img
                       alt="User Avatar"
-                      src={user?.avatar?.url || "https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp"}
+                      src={
+                        user?.avatar?.url ||
+                        "https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp"
+                      }
                     />
                   </div>
                 </button>
-                
+
                 <div
                   className={`absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-lg border border-gray-200 transition-all duration-300 transform ${
-                    isDropdownOpen ? "opacity-100 scale-100 visible" : "opacity-0 scale-95 invisible"
+                    isDropdownOpen
+                      ? "opacity-100 scale-100 visible"
+                      : "opacity-0 scale-95 invisible"
                   }`}
                 >
                   <ul className="py-2">
                     <li className="px-4 py-2 hover:bg-gray-100 transition-all">
-                      <Link to={user.role === 'admin' ? '/admin' : '/user'} onClick={() => setIsDropdownOpen(false)}>Dashboard</Link>
+                      <Link
+                        to={user.role === "admin" ? "/admin" : "/user"}
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        Dashboard
+                      </Link>
                     </li>
                     <li className="px-4 py-2 hover:bg-gray-100 transition-all">
-                      <Link to="/settings" onClick={() => setIsDropdownOpen(false)}>Settings</Link>
+                      <Link
+                        to="/settings"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        Settings
+                      </Link>
                     </li>
                     <li
                       className="px-4 py-2 text-red-500 hover:bg-gray-100 cursor-pointer transition-all"
@@ -96,48 +121,77 @@ function Navbar() {
               </div>
             ) : (
               <>
-                <Link to="/login" className="hover:text-blue-600 transition-all duration-300">Login</Link>
-                <Link to="/register" className="hover:text-blue-600 transition-all duration-300">Register</Link>
+                <Link to="/login">
+                  <button className="w-36 h-12 border-2 border-sky-300 text-sky-800 font-black rounded-full hover:text-white duration-300 relative group">
+                    <span className="absolute w-12 group-hover:w-[88%] duration-300 flex group-hover:justify-start rounded-full inset-2 bg-sky-300 group-hover:bg-sky-500 group-hover:duration-500 -z-10"></span>
+                    Login
+                  </button>
+                </Link>
               </>
             )}
           </div>
 
           {/* Mobile Menu Button */}
-          <button className="md:hidden p-2" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-            {isMenuOpen ? <XMarkIcon className="h-6 w-6" /> : <Bars3Icon className="h-6 w-6" />}
+          <button
+            className="md:hidden p-2"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          >
+            {isMenuOpen ? (
+              <XMarkIcon className="h-6 w-6" />
+            ) : (
+              <Bars3Icon className="h-6 w-6" />
+            )}
           </button>
         </div>
 
         {/* Mobile Menu with Smooth Slide Effect */}
         <div
           className={`md:hidden fixed top-16 left-0 w-full bg-white border-t border-gray-100 shadow-md transform transition-all duration-300 overflow-hidden ${
-            isMenuOpen ? "h-auto opacity-100 visible" : "h-0 opacity-0 invisible"
+            isMenuOpen
+              ? "h-auto opacity-100 visible"
+              : "h-0 opacity-0 invisible"
           }`}
         >
           <div className="flex flex-col space-y-4 py-4 px-4">
-            <Link to="/" className="hover:text-blue-600 transition-all duration-300" onClick={() => setIsMenuOpen(false)}>
+            <Link
+              to="/"
+              className="hover:text-blue-600 transition-all duration-300"
+              onClick={() => setIsMenuOpen(false)}
+            >
               হোম
             </Link>
 
             {user ? (
               <>
-                <Link to={user.role === 'admin' ? '/admin' : '/user'} className="hover:text-blue-600 transition-all duration-300" onClick={() => setIsMenuOpen(false)}>
+                <Link
+                  to={user.role === "admin" ? "/admin" : "/user"}
+                  className="hover:text-blue-600 transition-all duration-300"
+                  onClick={() => setIsMenuOpen(false)}
+                >
                   Dashboard
                 </Link>
-                <Link to="/settings" className="hover:text-blue-600 transition-all duration-300" onClick={() => setIsMenuOpen(false)}>
+                <Link
+                  to="/settings"
+                  className="hover:text-blue-600 transition-all duration-300"
+                  onClick={() => setIsMenuOpen(false)}
+                >
                   Settings
                 </Link>
-                <button onClick={handleLogout} className="text-red-500 hover:text-red-600 transition-all duration-300">
+                <button
+                  onClick={handleLogout}
+                  className="text-red-500 hover:text-red-600 transition-all duration-300"
+                >
                   Logout
                 </button>
               </>
             ) : (
               <>
-                <Link to="/login" className="hover:text-blue-600 transition-all duration-300" onClick={() => setIsMenuOpen(false)}>
+                <Link
+                  to="/login"
+                  className="hover:text-blue-600 transition-all duration-300"
+                  onClick={() => setIsMenuOpen(false)}
+                >
                   Login
-                </Link>
-                <Link to="/register" className="hover:text-blue-600 transition-all duration-300" onClick={() => setIsMenuOpen(false)}>
-                  Register
                 </Link>
               </>
             )}

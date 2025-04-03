@@ -6,19 +6,30 @@ import { useAuth } from "../provider/AuthContext";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { FaRegEye, FaRegEyeSlash } from "react-icons/fa";
-import Lottie from "react-lottie-player"; // ✅ Use react-lottie-player
-import loginAnimation from "../assets/login.json"; // Replace with the correct path
+import Lottie from "react-lottie-player";
+import loginAnimation from "../assets/login.json";
 
 export const LoginForm = () => {
   const { register, handleSubmit, formState: { errors } } = useForm();
-  const { login } = useAuth();
+  const { login, error: authError, setError } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const onSubmit = (data) => {
-    login(data);
-    toast.success("Login successful", { duration: 2000 });
-    navigate("/");
+  const onSubmit = async (data) => {
+    setIsSubmitting(true);
+    setError(null); // Clear previous errors
+    
+    const result = await login(data);
+    
+    if (result.success) {
+      toast.success("Login successful", { duration: 2000 });
+      navigate("/");
+    } else {
+      toast.error(result.error || "Login failed", { duration: 2000 });
+    }
+    
+    setIsSubmitting(false);
   };
 
   return (
@@ -34,6 +45,13 @@ export const LoginForm = () => {
         <div className="w-full md:w-1/2">
           <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-6">
             <h2 className="text-center text-3xl font-semibold text-blue-500">Log in</h2>
+
+            {/* Display authentication error */}
+            {authError && (
+              <div className="p-3 bg-red-100 text-red-700 rounded-lg text-center">
+                {authError}
+              </div>
+            )}
 
             {/* Email Field */}
             <div>
@@ -70,9 +88,12 @@ export const LoginForm = () => {
             <div>
               <button
                 type="submit"
-                className="w-full p-3 rounded-lg bg-blue-500 text-white font-medium text-lg uppercase hover:bg-blue-600 transition-all duration-300"
+                disabled={isSubmitting}
+                className={`w-full p-3 rounded-lg text-white font-medium text-lg uppercase transition-all duration-300 ${
+                  isSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'
+                }`}
               >
-                Log In
+                {isSubmitting ? 'Logging in...' : 'Log In'}
               </button>
             </div>
 
