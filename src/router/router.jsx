@@ -20,6 +20,9 @@ import CreateSubCategory from "../components/admin/SubCategoryManage/CreateSubCa
 import UpdateCategory from "../components/admin/CategoryManage/UpdateCategory";
 import CreateVideo from "../components/admin/Video/CreateVideo";
 import VideoManage from "../components/admin/Video/VideoManage";
+import PdfManage from "../components/admin/PdfManage/PdfManage";
+import CreatePdf from "../components/admin/PdfManage/CreatePdf";
+import EditPDF from "../components/admin/PdfManage/EditPDF";
 
 export const router = createBrowserRouter([
   {
@@ -67,6 +70,9 @@ export const router = createBrowserRouter([
           { path: "create-subcategories", element: <CreateSubCategory /> },
           { path: "create-videos", element: <CreateVideo /> },
           { path: "videos", element: <VideoManage /> },
+          { path: "pdfs", element: <PdfManage /> },
+          { path: "create-pdf", element: <CreatePdf /> },
+          { path: "edit-pdf/:id", element: <EditPDF /> },
           { path: "payments", element: <PaymentManagement /> },
         ],
       },
