@@ -6,23 +6,29 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 const UpdateCategory = () => {
-  const { id } = useParams(); // Get category ID from the URL
-  const navigate = useNavigate(); // Redirect after update
-  const axiosSecure = useAxiosPublic(); // Axios hook for API calls
-
-  // React Hook Form setup
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm();
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const axiosSecure = useAxiosPublic();
+  const [currentImage, setCurrentImage] = useState("");
+  const [imagePreview, setImagePreview] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Fetch category data when the component mounts
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm();
+
   useEffect(() => {
     const fetchCategory = async () => {
       try {
         const res = await axiosSecure.get(`/categories/${id}`);
         const categoryData = res.data;
-        setValue("name", categoryData.name); // Set form values
+        setValue("name", categoryData.name);
         setValue("description", categoryData.description);
+        setCurrentImage(categoryData.image);
       } catch (err) {
         setError("Error fetching category");
       }
@@ -30,43 +36,56 @@ const UpdateCategory = () => {
     fetchCategory();
   }, [id, setValue]);
 
-  // Update category function
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+    }
+  };
+
   const updateCategory = async (data) => {
     setLoading(true);
     try {
-      const res = await axiosSecure.put(`/categories/${id}`, data);
+      const formData = new FormData();
+      formData.append("name", data.name);
+      formData.append("description", data.description);
+      
+      if (data.image && data.image[0]) {
+        formData.append("image", data.image[0]);
+      }
+
+      const res = await axiosSecure.put(`/categories/${id}`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
       if (res.status === 200) {
-        toast.success("Category updated successfully", {
-          duration: 1000,
-        }); 
-        navigate("/admin/categories"); // Redirect after successful update
+        toast.success("Category updated successfully");
+        navigate("/admin/categories");
       }
     } catch (err) {
       setError("Error updating category");
+      toast.error("Failed to update category");
     } finally {
       setLoading(false);
     }
   };
 
-  const onSubmit = (data) => {
-    updateCategory(data);
-  };
-
   return (
     <div className="max-w-3xl mx-auto p-6 bg-white shadow-md rounded-md">
       <h2 className="text-2xl font-semibold text-center mb-6">Update Category</h2>
-
-      {/* Error message */}
+      
       {error && <div className="text-red-500 mb-4">{error}</div>}
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit(updateCategory)}>
         <div className="mb-4">
-          <label htmlFor="name" className="block text-gray-700 font-medium mb-2">
+          <label className="block text-gray-700 font-medium mb-2">
             Category Name
           </label>
           <input
             type="text"
-            id="name"
             {...register("name", { required: "Category name is required" })}
             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Enter category name"
@@ -77,14 +96,10 @@ const UpdateCategory = () => {
         </div>
 
         <div className="mb-4">
-          <label
-            htmlFor="description"
-            className="block text-gray-700 font-medium mb-2"
-          >
+          <label className="block text-gray-700 font-medium mb-2">
             Category Description
           </label>
           <textarea
-            id="description"
             {...register("description", { required: "Category description is required" })}
             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Enter category description"
@@ -92,6 +107,37 @@ const UpdateCategory = () => {
           {errors.description && (
             <span className="text-red-500 text-sm">{errors.description.message}</span>
           )}
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-gray-700 font-medium mb-2">
+            Category Image
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            {...register("image")}
+            onChange={handleImageChange}
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {imagePreview ? (
+            <div className="mt-2">
+              <img 
+                src={imagePreview} 
+                alt="New Preview" 
+                className="h-32 object-cover rounded-md"
+              />
+            </div>
+          ) : currentImage ? (
+            <div className="mt-2">
+              <p className="text-sm text-gray-500 mb-1">Current Image:</p>
+              <img 
+                src={currentImage} 
+                alt="Current" 
+                className="h-32 object-cover rounded-md"
+              />
+            </div>
+          ) : null}
         </div>
 
         <div className="flex justify-center">
