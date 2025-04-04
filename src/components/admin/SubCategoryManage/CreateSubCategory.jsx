@@ -60,7 +60,7 @@ const CreateSubCategory = () => {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           <div>
             <label htmlFor="name" className="block text-sm md:text-base font-medium text-gray-700 mb-1">
-              Name:
+            Subcategory Name:
             </label>
             <input
               type="text"

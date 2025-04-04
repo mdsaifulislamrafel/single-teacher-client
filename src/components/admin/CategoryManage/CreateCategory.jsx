@@ -15,21 +15,45 @@ const CreateCategory = () => {
   const axiosPublic = useAxiosPublic();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [imagePreview, setImagePreview] = useState("");
   const navigate = useNavigate();
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+    }
+  };
 
   const onSubmit = async (data) => {
     setLoading(true);
     setError("");
+    
     try {
-      await axiosPublic.post("/categories", data);
+      const formData = new FormData();
+      formData.append('name', data.name);
+      formData.append('description', data.description);
+      
+      if (data.image[0]) {
+        formData.append('image', data.image[0]);
+      }
+
+      await axiosPublic.post("/categories", formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
       toast.success("Category created successfully!", { duration: 2000 });
       navigate("/admin/categories");
       reset();
     } catch (err) {
       setError("Failed to create category");
       toast.error("Failed to create category", { duration: 2000 });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -66,6 +90,28 @@ const CreateCategory = () => {
               <p className="text-red-500 text-sm">
                 {errors.description.message}
               </p>
+            )}
+          </div>
+          <div>
+            <label className="block text-lg font-medium">Category Image</label>
+            <input
+              type="file"
+              accept="image/*"
+              {...register("image", { required: "Image is required" })}
+              onChange={handleImageChange}
+              className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+            {errors.image && (
+              <p className="text-red-500 text-sm">{errors.image.message}</p>
+            )}
+            {imagePreview && (
+              <div className="mt-4">
+                <img 
+                  src={imagePreview} 
+                  alt="Preview" 
+                  className="h-48 w-full object-cover rounded-lg"
+                />
+              </div>
             )}
           </div>
           <button

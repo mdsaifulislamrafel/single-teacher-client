@@ -23,6 +23,7 @@ import VideoManage from "../components/admin/Video/VideoManage";
 import PdfManage from "../components/admin/PdfManage/PdfManage";
 import CreatePdf from "../components/admin/PdfManage/CreatePdf";
 import EditPDF from "../components/admin/PdfManage/EditPDF";
+import UserDashboard from "../components/user/UserDashboard";
 
 export const router = createBrowserRouter([
   {
@@ -64,6 +65,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Dashboard /> },
           { path: "users", element: <UserManagement /> },
+          { path: "my-profile", element: <MyProfile /> },
           { path: "categories", element: <CategoryManagement /> },
           { path: "create-categories", element: <CreateCategory /> },
           { path: "update-categories/:id", element: <UpdateCategory /> },
@@ -88,6 +90,7 @@ export const router = createBrowserRouter([
         path: "",
         element: <UserLayout />,
         children: [
+          { index: true, element: <UserDashboard /> },
           { path: "my-courses", element: <MyCourses /> },
           { path: "my-pdfs", element: <MyPDFs /> },
           { path: "my-payments", element: <MyPayments /> },

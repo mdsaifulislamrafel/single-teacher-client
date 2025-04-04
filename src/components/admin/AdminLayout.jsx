@@ -15,6 +15,7 @@ import { BiLogOut } from "react-icons/bi";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { LiaFilePdfSolid } from "react-icons/lia";
+import { CgProfile } from "react-icons/cg";
 
 function AdminLayout() {
   const { logout } = useAuth();
@@ -23,6 +24,7 @@ function AdminLayout() {
 
   const adminMenuItems = [
     { title: "ড্যাশবোর্ড", icon: ChartBarIcon, path: "/admin" },
+    { title: "আমার প্রোফাইল", icon: CgProfile, path: "/admin/my-profile" },
     { title: "ইউজার ম্যানেজমেন্ট", icon: UsersIcon, path: "/admin/users" },
     { title: "ক্যাটাগরি ম্যানেজমেন্ট", icon: FolderIcon, path: "/admin/categories" },
     { title: "ভিডিও ম্যানেজমেন্ট", icon: VideoCameraIcon, path: "/admin/videos" },
