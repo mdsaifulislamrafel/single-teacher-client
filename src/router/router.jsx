@@ -1,5 +1,4 @@
 import { createBrowserRouter } from "react-router-dom";
-import Navbar from "../components/Navbar";
 import HomePage from "../components/HomePage";
 import AdminLayout from "../components/admin/AdminLayout";
 import Dashboard from "../components/admin/Dashboard";
@@ -24,18 +23,17 @@ import PdfManage from "../components/admin/PdfManage/PdfManage";
 import CreatePdf from "../components/admin/PdfManage/CreatePdf";
 import EditPDF from "../components/admin/PdfManage/EditPDF";
 import UserDashboard from "../components/user/UserDashboard";
+import MainLayout from "../Layout/MainLayout";
 
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: (
-      <div className="min-h-screen bg-gray-100">
-        <Navbar />
-        <div className="mt-16">
-          <HomePage />
-        </div>
-      </div>
-    ),
+    element: <MainLayout />,
+    children: [
+      {path: '/',
+        element: <HomePage/>
+      }
+    ]
   },
   {
     path: "/register",

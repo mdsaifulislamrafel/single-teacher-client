@@ -7,7 +7,6 @@ import {
   ChartBarIcon,
   CurrencyBangladeshiIcon,
   HomeIcon,
-  UsersIcon,
   VideoCameraIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline"
@@ -15,6 +14,7 @@ import { BiLogOut } from "react-icons/bi"
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "framer-motion"
 import { LiaFilePdfSolid } from "react-icons/lia"
+import { CgProfile } from "react-icons/cg"
 
 function UserLayout() {
   const { logout } = useAuth()
@@ -24,7 +24,7 @@ function UserLayout() {
   // Menu items for user
   const userMenuItems = [
     { title: "ড্যাশবোর্ড", icon: ChartBarIcon, path: "/user" },
-    { title: "আমার প্রোফাইল", icon: UsersIcon, path: "/user/my-profile" },
+    { title: "আমার প্রোফাইল", icon: CgProfile, path: "/user/my-profile" },
     { title: "আমার কোর্স", icon: VideoCameraIcon, path: "/user/my-courses" },
     { title: "আমার PDF", icon: LiaFilePdfSolid, path: "/user/my-pdfs" },
     {
